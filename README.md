@@ -37,9 +37,13 @@ This repo takes the upstream [Spring PetClinic](https://github.com/spring-projec
 
 One repository, one continuous journey. Each milestone is an annotated Git tag + GitHub Release, and every previous milestone keeps working.
 
+---
+
+## Milestones
+
 | Tag | Focus |
 |---|---|
-| `v1-containerized` | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **current** |
+| [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **current, verified** |
 | `v2-cicd` | CI build/test/publish pipeline |
 | `v3-aws-iac` | Terraform-provisioned AWS infrastructure |
 | `v4-kubernetes` | Kubernetes deployment |
@@ -114,7 +118,7 @@ No AWS/Azure/GCP account is needed for V1.
 ## Run Locally
 
 ```bash
-git clone <this-repo-url>
+git clone https://github.com/ThinkWithOps/thinkwithops-petclinic-production.git
 cd thinkwithops-petclinic-production
 ./scripts/deploy.sh     # generates a private .env, builds the image, starts the stack
 ./scripts/verify.sh     # full functional + persistence validation
