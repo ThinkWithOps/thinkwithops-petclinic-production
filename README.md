@@ -15,6 +15,7 @@
 ## Table of Contents
 
 - [Project Description](#project-description)
+- [Video Series](#video-series)
 - [Attribution](#attribution)
 - [Milestones](#milestones)
 - [V1 — Containerized Runtime](#v1--containerized-runtime)
@@ -26,6 +27,8 @@
 - [What This Teaches](#what-this-teaches)
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
+- [Challenges](#challenges)
+- [Command Reference](#command-reference)
 - [License](#license)
 
 ---
@@ -37,6 +40,14 @@ This repo takes the upstream [Spring PetClinic](https://github.com/spring-projec
 `src/main` and `src/test` are never modified. Everything under `docker/`, `scripts/`, `docs/`, and the workflow files is new, purpose-built DevOps work added on top of the copied application.
 
 One repository, one continuous journey. Each milestone is an annotated Git tag + GitHub Release, and every previous milestone keeps working.
+
+---
+
+## Video Series
+
+| Part | Tag | Video | Focus |
+|---|---|---|---|
+| V1 | [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | _coming soon_ | Hardened Docker image, PostgreSQL, Nginx reverse proxy, health-gated startup, first fully verified deploy |
 
 ---
 
@@ -186,6 +197,33 @@ docs/
 ## Troubleshooting
 
 Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
+---
+
+## Challenges
+
+Real issues hit while building and verifying V1 — not hypothetical failure modes, actually encountered on a real Docker host.
+
+- **`gradlew`/`mvnw`/every shell script lost their executable bit.** Checked in as `100644` instead of `100755` — likely from a Windows checkout/copy during the initial import. CI failed with `./gradlew: Permission denied`; the playground host failed identically on `./scripts/setup-playground.sh`. Fixed with `git update-index --chmod=+x <file>` for every affected script (not `chmod` locally on Windows, which doesn't touch git's own mode bit).
+- **`nginx -t` failed: `directive "location" has no opening "{"`.** The actuator-blocking regex `location ~* ^/actuator(?:/|;|$) { return 404; }` had an unquoted `;` inside the pattern. Nginx's config tokenizer treats a bare `;` as end-of-directive regardless of where it appears — not just regex-invalid, syntactically invalid at the tokenizer level. Fixed by quoting the whole pattern: `location ~* "^/actuator(?:/|;|$)"`.
+- **Playground host had no `python3`.** `setup-playground.sh` calls Python for env-file templating and Compose-config parsing; a fresh Ubuntu 24.04 playground didn't have it preinstalled. `sudo apt install -y python3` (stdlib only — no `pip`/extra packages needed).
+- **Port 8080 already bound on the playground host.** `driver failed programming external connectivity ... address already in use`. Root cause: the playground's own web terminal (`ttyd`) already listens on 8080. Diagnosed with `sudo ss -tlnp | grep 8080`, fixed by switching `HTTP_PORT` to `8081` in `docker/.env` — no code change needed, purely a host-environment collision.
+
+---
+
+## Command Reference
+
+| Command | Purpose |
+|---|---|
+| `docker compose --env-file docker/.env -f docker/compose.yaml ps` | Check container status at a glance |
+| `docker compose --env-file docker/.env -f docker/compose.yaml logs <service> --tail=50` | Tail recent logs for `app`, `postgres`, or `nginx` |
+| `docker compose --env-file docker/.env -f docker/compose.yaml exec app sh` | Shell into the running app container |
+| `docker compose --env-file docker/.env -f docker/compose.yaml exec postgres psql -U postgres -d petclinic` | Open a `psql` session against the database |
+| `docker inspect <container> --format '{{json .State.Health}}'` | Full healthcheck history/output for one container |
+| `sudo ss -tlnp \| grep <port>` | Find what's already bound to a port before changing `HTTP_PORT` |
+| `docker image inspect petclinic:local --format 'Size: {{.Size}} bytes'` | Measured image size (see ADR 0001's budget) |
+| `docker history --no-trunc petclinic:local` | Full per-layer size breakdown |
+| `./scripts/static-check.sh` | Shellcheck + Compose config validation, no daemon required |
 
 ---
 
