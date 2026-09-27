@@ -1,0 +1,15 @@
+**
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/**
+!src/
+!src/**
+!LICENSE.txt
+!docker/
+!docker/Dockerfile
+**/target/
+**/build/
+**/.env
+**/.env.*
+**/*.log

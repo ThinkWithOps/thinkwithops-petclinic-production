@@ -1,0 +1,107 @@
+name: ${COMPOSE_PROJECT_NAME:-petclinic-v1}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-petclinic}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run scripts/setup-playground.sh first}
+      APP_DB_USER: ${POSTGRES_USER:-petclinic}
+      APP_DB_PASSWORD: ${POSTGRES_PASS:?Run scripts/setup-playground.sh first}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-app-user.sh:/docker-entrypoint-initdb.d/10-app-user.sh:ro
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-512m}
+    restart: unless-stopped
+    logging: *logging
+
+  app:
+    image: ${APP_IMAGE:-petclinic:local}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-petclinic}
+      POSTGRES_USER: ${POSTGRES_USER:-petclinic}
+      POSTGRES_PASS: ${POSTGRES_PASS:?Run scripts/setup-playground.sh first}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=65.0 -XX:+ExitOnOutOfMemoryError}
+      MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+      MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: never
+      SERVER_SHUTDOWN: graceful
+      SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: ${SHUTDOWN_TIMEOUT:-30s}
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [frontend, backend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/actuator/health/readiness']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m,uid=10001,gid=10001
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: ${APP_MEMORY_LIMIT:-768m}
+    stop_grace_period: ${STOP_GRACE_PERIOD:-40s}
+    restart: unless-stopped
+    logging: *logging
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:stable-alpine@sha256:4714e0b1b2577eaa1a6131d07c958b67f0eb68e6d0521e90c6e5287db8cf0bc5
+    user: "101:101"
+    entrypoint: [/bin/sh, /etc/nginx/start.sh]
+    environment:
+      PUBLIC_SCHEME: ${PUBLIC_SCHEME:-http}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/petclinic.conf:/etc/nginx/petclinic.conf.template:ro
+      - ./nginx/start.sh:/etc/nginx/start.sh:ro
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:8080'
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [frontend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/nginx-health']
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,uid=101,gid=101
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: ${NGINX_MEMORY_LIMIT:-64m}
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  postgres-data:
