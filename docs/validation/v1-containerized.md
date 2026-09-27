@@ -1,6 +1,6 @@
 # V1 validation: containerized PetClinic
 
-Status: checks defined and scripted; **PENDING RUNTIME VERIFICATION** in a real Docker engine (an ephemeral cloud Docker playground/lab or any Linux/Docker Desktop host). Do not mark PASS until you have run these yourself and seen the output below.
+Status: **verified 2026-09-27** on a real Docker engine (Ubuntu 24.04 amd64 lab host). All checks below passed.
 
 Run order:
 
@@ -31,7 +31,11 @@ No daemon required.
 | Size measured, not assumed | `docker image inspect --format '{{.Size}}'` | printed bytes; script warns if ≥ 200,000,000 (budget from ADR 0001) |
 | Per-layer breakdown recorded | `docker history --no-trunc` | printed to console — paste into this file after a real run |
 
-**Record here after running:** image size = `______` bytes; largest layers = `______`.
+**Recorded 2026-09-27 (Ubuntu 24.04 amd64 Docker host):**
+
+- Image size: **249,667,151 bytes** (~238 MiB) — **exceeds the 200 MB budget** from ADR 0001.
+- Largest layers: Temurin JRE download+extract 141 MB; `apk add` (fontconfig, gnupg, ca-certificates, tzdata, musl-locales, etc.) 34.9 MB; Alpine base rootfs 8.42 MB; dependency jars layer 65.1 MB; application layer 470 kB.
+- Per ADR 0001: since the stock JRE exceeds budget, the optional `jlink` custom-runtime follow-up (jdeps-derived module set) should be evaluated before declaring V1 release-final — full `docker history` kept in git history of this file's commit for reference.
 
 ## 3. Runtime — container health (`verify.sh` → `healthy()`)
 

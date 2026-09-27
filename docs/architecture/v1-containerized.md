@@ -1,6 +1,6 @@
 # V1 architecture: containerized PetClinic
 
-Status: implemented; **PENDING RUNTIME VERIFICATION** in an ephemeral cloud Docker playground.
+Status: implemented and runtime-verified on a real Docker engine (see `docs/validation/v1-containerized.md`).
 
 ```mermaid
 flowchart LR

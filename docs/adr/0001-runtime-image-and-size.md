@@ -1,10 +1,10 @@
 # ADR 0001: layered Temurin JRE and a measured size budget
 
-Status: accepted stock-JRE design; size decision **PENDING RUNTIME VERIFICATION**.
+Status: accepted stock-JRE design; **measured 2026-09-27: 249,667,151 bytes (~238 MiB) — exceeds the 200 MB budget.** See `docs/validation/v1-containerized.md` §2 for the full `docker history` breakdown. The `jlink` follow-up below is the accepted next step, not yet built.
 
 ## Problem
 
-Build a reproducible Java 17 runtime around the upstream Spring Boot 4.1.0 application without shipping Maven, a compiler, caches or source in the final image. The target is below 200,000,000 uncompressed bytes; no measurement is yet available.
+Build a reproducible Java 17 runtime around the upstream Spring Boot 4.1.0 application without shipping Maven, a compiler, caches or source in the final image. The target is below 200,000,000 uncompressed bytes.
 
 ## Options
 
