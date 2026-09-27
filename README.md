@@ -23,6 +23,7 @@
 - [Prerequisites](#prerequisites)
 - [Run Locally](#run-locally)
 - [Validation](#validation)
+- [What This Teaches](#what-this-teaches)
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -132,6 +133,26 @@ cd thinkwithops-petclinic-production
 ## Validation
 
 Full checklist with expected output: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md). Covers container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, and measured image size.
+
+---
+
+## What This Teaches
+
+| What Was Built | Skill Demonstrated |
+|---|---|
+| Multi-stage Dockerfile (Maven build → Temurin JRE runtime) | Separating build toolchain from runtime image; layer caching with BuildKit cache mounts |
+| Spring Boot layered jar extraction (`--layers --destination`) | Splitting dependency/loader/application layers so unchanged deps don't bust the Docker cache |
+| Fixed non-root UID/GID + read-only root filesystem + dropped capabilities | Container hardening beyond "it runs," matching what a real security review checks |
+| Digest-pinned base images everywhere | Reproducible builds — a tag can move underneath you, a digest can't |
+| Externalizing config via env vars into an *existing* Spring profile, without touching app code | Reading upstream source (`application-postgres.properties`) to find the real contract instead of guessing variable names |
+| `depends_on: condition: service_healthy` chained three deep | Health-gated startup ordering — why "the app started" isn't the same as "the app is ready" |
+| Nginx as the only ingress, `/actuator/**` denied at the proxy | Reducing attack surface at the network edge, not just in app config |
+| Separate `frontend`/`backend` Docker networks, one marked `internal` | Network segmentation on a single Docker host, not just "everything on one bridge" |
+| ADRs for every non-obvious decision (image choice, proxy placement, actuator exposure, repo layout) | Writing down *why*, with trade-offs and an enterprise-scale note — not just what |
+| `verify.sh`'s HTTP-write → PostgreSQL-read → restart → persistence-check chain | Proving persistence actually works, not assuming a named volume is enough |
+| Debugging a real `nginx -t` failure (unescaped `;` inside an unquoted regex terminating the directive early) | Reading nginx's actual error message and config-parsing rules instead of guessing at syntax |
+| Debugging lost executable bits on `gradlew`/`mvnw`/shell scripts after a Windows checkout | Git file-mode tracking (`100644` vs `100755`) as a real cross-platform CI failure mode |
+| Debugging a real deploy — port already bound by the host's own process, missing `python3` on a minimal image | Systematic diagnosis (`ss -tlnp`, `/etc/os-release`) instead of guessing fixes |
 
 ---
 
