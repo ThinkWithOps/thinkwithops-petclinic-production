@@ -27,7 +27,6 @@
 - [What This Teaches](#what-this-teaches)
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
-- [Challenges](#challenges)
 - [Command Reference](#command-reference)
 - [License](#license)
 
@@ -122,6 +121,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 - Docker Engine + Compose v2 plugin + Buildx (for the BuildKit cache mount)
 - `git`, `curl`, `python3`
 - Linux amd64 engine (the pinned Alpine JRE image targets `linux/amd64`)
+- Port `8080` free on host — some cloud/remote shells already bind a web terminal to it; check with `sudo ss -tlnp | grep 8080` and set `HTTP_PORT=8081` in `docker/.env` if occupied
 
 No AWS/Azure/GCP account is needed for V1.
 
@@ -197,17 +197,6 @@ docs/
 ## Troubleshooting
 
 Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubleshooting.md).
-
----
-
-## Challenges
-
-Real issues hit while building and verifying V1 — not hypothetical failure modes, actually encountered on a real Docker host.
-
-- **`gradlew`/`mvnw`/every shell script lost their executable bit.** Checked in as `100644` instead of `100755` — likely from a Windows checkout/copy during the initial import. CI failed with `./gradlew: Permission denied`; the playground host failed identically on `./scripts/setup-playground.sh`. Fixed with `git update-index --chmod=+x <file>` for every affected script (not `chmod` locally on Windows, which doesn't touch git's own mode bit).
-- **`nginx -t` failed: `directive "location" has no opening "{"`.** The actuator-blocking regex `location ~* ^/actuator(?:/|;|$) { return 404; }` had an unquoted `;` inside the pattern. Nginx's config tokenizer treats a bare `;` as end-of-directive regardless of where it appears — not just regex-invalid, syntactically invalid at the tokenizer level. Fixed by quoting the whole pattern: `location ~* "^/actuator(?:/|;|$)"`.
-- **Playground host had no `python3`.** `setup-playground.sh` calls Python for env-file templating and Compose-config parsing; a fresh Ubuntu 24.04 playground didn't have it preinstalled. `sudo apt install -y python3` (stdlib only — no `pip`/extra packages needed).
-- **Port 8080 already bound on the playground host.** `driver failed programming external connectivity ... address already in use`. Root cause: the playground's own web terminal (`ttyd`) already listens on 8080. Diagnosed with `sudo ss -tlnp | grep 8080`, fixed by switching `HTTP_PORT` to `8081` in `docker/.env` — no code change needed, purely a host-environment collision.
 
 ---
 
