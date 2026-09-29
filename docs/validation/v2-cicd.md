@@ -14,7 +14,7 @@ Jenkins/Nexus paths are still not runtime-verified — see checks 4 and 5.
 | 1 | PR with a failing test is blocked | Push a commit that breaks a test, open a PR | Not yet deliberately tested; `build-test` itself is confirmed working (green on real runs) |
 | 2 | A CRITICAL vulnerability blocks the pipeline | (Happened organically, not via a deliberately added test dependency) | **Verified for real**: the first real `trivy` run found 3 genuine fixable-CRITICAL Tomcat CVEs and failed the job exactly as designed — see the "Hit for real" note below |
 | 3 | A push to `main` goes fully green | Push to `main` | **Verified**: run `36608891090`, all 6 jobs green. PR-merge-specific gating (branch protection required checks) not yet separately confirmed — depends on `docs/branch-protection.md` being applied |
-| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Blocked, now fixed in code, needs a secret**: the release-please PR opened but showed **zero CI checks** — GitHub doesn't trigger workflows from PRs authored by the default `GITHUB_TOKEN`. Fixed by passing a PAT (`RELEASE_PLEASE_TOKEN`) to `release-please-action` — see `docs/ci-setup.md` §2b. Re-test once that secret exists |
+| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Partially proven, one release permanently incomplete, retry in progress** — see the "Hit for real" note below |
 | 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | Not yet run — needs a real Docker engine |
 
 **Note on `ci/jenkins/Dockerfile`'s HEALTHCHECK**: uses `wget`, unverified
@@ -59,13 +59,32 @@ wouldn't block the stack from running, but should be fixed if hit).
   Commits (enforced by squash-merge + branch protection's PR-title-as-commit
   setting — see `docs/branch-protection.md` step 7); a non-conventional
   title produces no version bump and no release PR update.
-- **Hit for real: release-please PR opens but never runs CI**: not in the
-  original spec's problem list, but a genuine first-run blocker. A PR opened
+- **Hit for real: release-please PR opens but never runs CI**: a PR opened
   by a workflow's default `GITHUB_TOKEN` does not trigger other workflow
   runs (GitHub's anti-recursion guard), so `ci.yml` never ran on the
   release-please PR and its required checks could never appear, let alone
-  go green. Fixed by passing a PAT via `RELEASE_PLEASE_TOKEN` — see
-  `docs/ci-setup.md` §2b. PENDING re-verification once that secret is set.
+  go green. **Fixed**: passing a PAT via `RELEASE_PLEASE_TOKEN` to
+  `release-please-action` — see `docs/ci-setup.md` §2b. Confirmed working:
+  PR #1's checks all ran and passed once the secret was set.
+- **Hit for real: `petclinic-v1.0.0`'s image was never promoted**. PR #1
+  (`chore(main): release petclinic 1.0.0`) was merged via the GitHub web UI,
+  but its merge commit (`562eff88`) shows **zero check-runs at all**
+  (`gh api .../commits/562eff88.../check-runs` → `total_count: 0`) — the
+  push event that should have triggered `ci.yml`/`release.yml` never turned
+  into a workflow run. release-please's own job still ran independently
+  (triggered by a later, unrelated push) and correctly created the GitHub
+  Release + tag `petclinic-v1.0.0`, but `promote-by-digest` then failed with
+  `manifest unknown`: there was no `sha-562eff884f71` image in GHCR to
+  promote, because `publish` never ran on that commit. This specific release
+  is permanently incomplete (its image was never built/scanned, so there is
+  nothing to promote by digest — building one now from current `main` would
+  not be "the same tested image," defeating the entire point of this
+  design). Added `workflow_dispatch` to both workflows as a recovery path
+  for a future occurrence (can't fix this specific past commit — GitHub
+  `workflow_dispatch` only runs against a branch/tag ref, not an arbitrary
+  historical SHA). Confirmed the underlying push-trigger works normally on
+  every push before and after this one incident — treating it as a one-off,
+  not a systemic issue, unless it recurs.
 - **nohttp/checkstyle failures from new files**: **confirmed clean** —
   `build-test` passed for real; this milestone's files are all outside
   `src/`, so the existing `maven-checkstyle-plugin` bindings had nothing new
