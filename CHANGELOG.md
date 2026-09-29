@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.1](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.0.0...petclinic-v1.0.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* make digest-equality proof robust instead of fragile JSON grep ([9039216](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/90392167826c6fcea74fa6738ee2716e0815dfb1))
+
+
+### Documentation
+
+* record the v1.0.0 image-promotion incident in v2-cicd validation ([6563e25](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/6563e25489066c78ed50266bce3de3e662ad7c13))
+
 ## 1.0.0 (2026-09-29)
 
 
