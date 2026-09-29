@@ -1,0 +1,79 @@
+name: Release
+
+# SUPPLY-CHAIN NOTE: pin all `uses:` to commit SHAs before production use.
+# See docs/adr/0006-actions-pinned-by-sha.md.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - uses: googleapis/release-please-action@v4 # TODO: pin to commit SHA
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  promote-by-digest:
+    name: Promote scanned image by digest (no rebuild)
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@v3 # TODO: pin to commit SHA
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve source tag and target semver tag
+        id: tags
+        env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.sha }}
+        run: |
+          echo "source=sha-${RELEASE_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "target=${{ needs.release-please.outputs.tag_name }}" >> "$GITHUB_OUTPUT"
+      # No `docker build` here on purpose: release-please only tags a commit that
+      # already merged to main, which the ci.yml `publish` job already built,
+      # scanned (Trivy) and pushed as sha-<short>. Retagging by digest is what
+      # makes "the image that was tested is the image that is released" true.
+      - name: Pull the already-scanned image by its CI tag
+        run: docker pull "${IMAGE_NAME}:${{ steps.tags.outputs.source }}"
+      - name: Capture source digest
+        id: digest
+        run: |
+          digest=$(docker image inspect "${IMAGE_NAME}:${{ steps.tags.outputs.source }}" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Source digest: $digest"
+      - name: Retag and push (promote by digest)
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE_NAME}:${{ steps.tags.outputs.target }}" \
+            "${IMAGE_NAME}@${{ steps.digest.outputs.digest }}"
+      - name: Prove digest equality
+        run: |
+          promoted=$(docker buildx imagetools inspect "${IMAGE_NAME}:${{ steps.tags.outputs.target }}" --format '{{json .Manifest}}' | grep -o '"digest":"[^"]*"' | head -1)
+          echo "Source digest:    ${{ steps.digest.outputs.digest }}"
+          echo "Promoted manifest: $promoted"
+          [[ "$promoted" == *"${{ steps.digest.outputs.digest }}"* ]] || { echo "DIGEST MISMATCH"; exit 1; }
+          echo "Digest equality proven: same image, no rebuild."
