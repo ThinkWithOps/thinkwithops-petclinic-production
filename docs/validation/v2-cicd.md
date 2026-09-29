@@ -46,9 +46,8 @@ until each row below is filled in with a real result.
   would trip it, but this milestone adds no files under `src/`, only CI/docs
   configuration, so none is expected; PENDING confirmation on first real run.
 
-## SonarQube Cloud setup required before check 1-3 can run
+## One-time setup required before check 1-4 can run
 
-1. Create a SonarQube Cloud organization + import this GitHub repository.
-2. Generate a token, store it as the GitHub repo secret `SONAR_TOKEN`.
-3. Confirm the `sonar.projectKey`/`sonar.organization` in
-   `sonar-project.properties` match the values SonarQube Cloud assigned.
+SonarCloud project/token, the org-level Actions PR-creation permission
+release-please needs, and GHCR write permission: see
+[`docs/ci-setup.md`](../ci-setup.md).

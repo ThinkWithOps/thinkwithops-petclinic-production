@@ -130,7 +130,7 @@ flowchart TD
 
 **Build-once, promote-by-digest:** the image built and Trivy-scanned in the `image`/`trivy` jobs is the exact `image.tar` the `publish` job loads and pushes — never rebuilt. `release.yml` never runs `docker build`; it retags that same pushed digest to the release's semver tag and proves the digests match in the job log. Full write-up: [`docs/architecture/v2-cicd.md`](docs/architecture/v2-cicd.md).
 
-Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
+Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). One-time setup (SonarCloud, org PR permissions, GHCR): [`docs/ci-setup.md`](docs/ci-setup.md). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
 
 ---
 
