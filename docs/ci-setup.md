@@ -25,6 +25,11 @@ by running the pipeline for real and fixing what it hit; see the ADRs in
    Token. Copy it immediately — it's shown once.
 6. In GitHub: repo → Settings → Secrets and variables → Actions → New
    repository secret → name `SONAR_TOKEN`, paste the token, Save.
+7. Project → Administration → Analysis Method → turn **off** "Automatic
+   Analysis." SonarCloud enables this by default on import and it scans on
+   every push with no CI involved at all; running it alongside `ci.yml`'s
+   CI-based analysis on the same project fails with "You are running CI
+   analysis while Automatic Analysis is enabled." Keep CI-based only.
 
 ## 2. Allow GitHub Actions to open the release-please PR
 
