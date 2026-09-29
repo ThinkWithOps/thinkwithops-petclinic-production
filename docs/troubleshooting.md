@@ -1,44 +1,52 @@
+# Troubleshooting — V1 containerized runtime
+
+Only failure modes that genuinely arise from this architecture. Format: symptom → likely cause → how to diagnose → fix.
 
 ---
 
-### SonarQube quality gate fails on a PR that "looks fine"
+### `docker compose up` / `deploy.sh` fails with "Missing .env"
 
-**Cause:** the gate applies to *new code*, not overall file coverage — a small new method with no test can fail an 80%-new-code-coverage gate even if the file's total coverage is high.
+**Cause:** `docker/.env` doesn't exist yet; it's gitignored on purpose (never commit real secrets).
 
-**Diagnose:** open the SonarQube Cloud link posted as a PR check — it lists exactly which new lines are uncovered/flagged, not the whole file.
+**Diagnose:** `ls docker/.env`
 
-**Fix:** add a test for the new lines, or, if the gate's threshold is genuinely wrong for this change (e.g. generated code), adjust `sonar-project.properties`' exclusions with a documented reason — never suppress by disabling the gate itself.
-
----
-
-### Trivy fails CI on a CRITICAL CVE with no available fix
-
-**Cause:** `ignore-unfixed: true` means an unfixed CRITICAL doesn't fail CI by itself — if the job still failed, the CVE has a fix Trivy expects you to take, or it's not actually unfixed (check the Trivy job output for the exact reasoning).
-
-**Diagnose:** re-run `trivy image --severity CRITICAL <image>` locally and read the `Fixed Version` column.
-
-**Fix:** bump the affected dependency/base image if a fix exists. If genuinely unfixed and accepted, add a time-boxed entry to `.trivyignore` with a justification, owner, and review/expiry date — see ADR 0008.
+**Fix:** run `./scripts/setup-playground.sh` (also called automatically by `deploy.sh`). It copies `docker/.env.example` → `docker/.env`, mode 0600, and replaces the two `REPLACE_WITH_RANDOM_*_PASSWORD` placeholders with real random secrets.
 
 ---
 
-### `release.yml`'s digest-equality check fails
+### `app` container never becomes healthy; stuck behind `postgres`
 
-**Cause:** the `sha-<short>` image `promote-by-digest` tried to pull no longer exists at the expected tag (e.g. GHCR retention policy pruned it, or the `publish` job on that commit never ran/failed).
+**Cause:** Compose's `depends_on: condition: service_healthy` is working as designed — the app won't even start until Postgres's `pg_isready` healthcheck passes.
 
-**Diagnose:** check whether `ghcr.io/<repo>:sha-<short>` exists at all (`docker pull` it manually); check the `publish` job's run for that commit in GitHub Actions.
+**Diagnose:** `docker compose -f docker/compose.yaml ps` — check which service is still `starting`/`unhealthy`. `docker compose -f docker/compose.yaml logs postgres`.
 
-**Fix:** never delete `sha-<short>` tags before their release promotion has run; if one was pruned, the only safe fix is a new commit (new SHA, new build) — do not manually retag an unrelated image to "fix" this, since that reintroduces the exact digest-drift risk this design exists to prevent.
+**Fix:** usually just needs more time (Postgres cold start + init script). If it never recovers, check `docker/postgres/init-app-user.sh` output in the Postgres logs for SQL errors.
 
 ---
 
-### Self-hosted SonarQube (`ci/compose.yaml`) keeps restarting
+### App healthcheck fails with "wget: not found" or similar
 
-**Cause:** SonarQube's embedded Elasticsearch requires `vm.max_map_count >= 262144` on the Docker **host**, not inside the container.
+**Cause:** the runtime image is Alpine — there is no `curl`, only BusyBox `wget`. If someone edits the Dockerfile's `HEALTHCHECK` to use `curl`, it will always fail.
 
-**Diagnose:** `docker compose -f ci/compose.yaml logs sonarqube` — look for an Elasticsearch bootstrap check failure mentioning `max_map_count`.
+**Diagnose:** `docker inspect <app-container> --format '{{json .State.Health}}'`
 
-**Fix:** on the host, `sudo sysctl -w vm.max_map_count=262144` (persist via `/etc/sysctl.d/`), then `./scripts/ci-stack-up.sh` again.
- `POSTGRES_PASS`) — if `docker/compose.yaml` doesn't set exactly those names, Spring silently falls back to defaults and fails to connect.
+**Fix:** keep the healthcheck as `wget -q -O /dev/null http://127.0.0.1:8080/actuator/health/liveness` (already how `docker/Dockerfile` is written).
+
+---
+
+### App reachable directly on 8080 but actuator/health probes report `DOWN` or app never becomes ready
+
+**Cause:** `MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED` is only auto-enabled by Spring Boot when it detects it's running on Kubernetes. In plain Docker, it must be set explicitly.
+
+**Diagnose:** `docker exec <app-container> env | grep MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED`
+
+**Fix:** confirm it's `true` in `docker/compose.yaml`'s `app.environment` (it already is) — this only breaks if that line is removed or the env var name is misspelled.
+
+---
+
+### App can't connect to PostgreSQL — "Connection refused" or datasource errors on startup
+
+**Cause:** wrong env var names. The upstream `application-postgres.properties` reads specific placeholder names (`POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASS`) — if `docker/compose.yaml` doesn't set exactly those names, Spring silently falls back to defaults and fails to connect.
 
 **Diagnose:** `grep -n 'POSTGRES_' src/main/resources/application-postgres.properties` and compare against `docker/compose.yaml`'s `app.environment`. `docker compose logs app` for the actual JDBC connection error.
 
@@ -91,3 +99,43 @@
 **Cause:** cloud playground labs are ephemeral (~2–3 hours) by design — this is not a bug in this repo.
 
 **Fix:** nothing to fix; re-provision a new playground and re-run `./scripts/deploy.sh` — the whole flow is idempotent and safe to rerun against a fresh lab. Data does not survive playground destruction (only survives `compose down && up` within the same session) — this is documented, not a defect.
+
+---
+
+### SonarQube quality gate fails on a PR that "looks fine"
+
+**Cause:** the gate applies to *new code*, not overall file coverage — a small new method with no test can fail an 80%-new-code-coverage gate even if the file's total coverage is high.
+
+**Diagnose:** open the SonarQube Cloud link posted as a PR check — it lists exactly which new lines are uncovered/flagged, not the whole file.
+
+**Fix:** add a test for the new lines, or, if the gate's threshold is genuinely wrong for this change (e.g. generated code), adjust `sonar-project.properties`' exclusions with a documented reason — never suppress by disabling the gate itself.
+
+---
+
+### Trivy fails CI on a CRITICAL CVE with no available fix
+
+**Cause:** `ignore-unfixed: true` means an unfixed CRITICAL doesn't fail CI by itself — if the job still failed, the CVE has a fix Trivy expects you to take, or it's not actually unfixed (check the Trivy job output for the exact reasoning).
+
+**Diagnose:** re-run `trivy image --severity CRITICAL <image>` locally and read the `Fixed Version` column.
+
+**Fix:** bump the affected dependency/base image if a fix exists. If genuinely unfixed and accepted, add a time-boxed entry to `.trivyignore` with a justification, owner, and review/expiry date — see ADR 0008.
+
+---
+
+### `release.yml`'s digest-equality check fails
+
+**Cause:** the `sha-<short>` image `promote-by-digest` tried to pull no longer exists at the expected tag (e.g. GHCR retention policy pruned it, or the `publish` job on that commit never ran/failed).
+
+**Diagnose:** check whether `ghcr.io/<repo>:sha-<short>` exists at all (`docker pull` it manually); check the `publish` job's run for that commit in GitHub Actions.
+
+**Fix:** never delete `sha-<short>` tags before their release promotion has run; if one was pruned, the only safe fix is a new commit (new SHA, new build) — do not manually retag an unrelated image to "fix" this, since that reintroduces the exact digest-drift risk this design exists to prevent.
+
+---
+
+### Self-hosted SonarQube (`ci/compose.yaml`) keeps restarting
+
+**Cause:** SonarQube's embedded Elasticsearch requires `vm.max_map_count >= 262144` on the Docker **host**, not inside the container.
+
+**Diagnose:** `docker compose -f ci/compose.yaml logs sonarqube` — look for an Elasticsearch bootstrap check failure mentioning `max_map_count`.
+
+**Fix:** on the host, `sudo sysctl -w vm.max_map_count=262144` (persist via `/etc/sysctl.d/`), then `./scripts/ci-stack-up.sh` again.
