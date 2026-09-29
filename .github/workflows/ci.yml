@@ -156,6 +156,9 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL
+          # SARIF defaults to reporting every severity unless explicitly limited.
+          # Keep exit-code aligned with this job's fixable-CRITICAL policy.
+          limit-severities-for-sarif: true
           ignore-unfixed: true
           exit-code: '1'
           trivyignores: .trivyignore
