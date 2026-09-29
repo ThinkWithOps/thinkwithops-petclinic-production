@@ -11,6 +11,9 @@ concurrency:
   group: release-${{ github.workflow }}
   cancel-in-progress: false
 
+# Deny by default at workflow level; each job below grants only what it needs.
+permissions: {}
+
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
