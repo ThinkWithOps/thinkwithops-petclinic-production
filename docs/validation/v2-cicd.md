@@ -32,6 +32,17 @@ wouldn't block the stack from running, but should be fixed if hit).
 - **Trivy CRITICALs with no fix**: handled by `ignore-unfixed: true` (see
   ADR 0008) — these don't fail CI but also don't show as fully clean; check
   the Trivy job summary for suppressed-but-unfixed findings periodically.
+- **Hit for real on 2026-09-29**: the first real `trivy` job run found 3
+  fixable CRITICAL CVEs (CVE-2026-68525, CVE-2026-65905, CVE-2026-65182) in
+  the embedded Apache Tomcat pulled in via `spring-boot-starter-webmvc` off
+  `spring-boot-starter-parent` 4.1.0. Tried the documented fix path (bump to
+  a patched `spring-boot-starter-parent`) first — Maven Central's search
+  index doesn't list any `4.x` release of that artifact at all (only up to
+  `3.5.3`), so there was no way to verify which version, if any, actually
+  carries the fix without guessing. Added time-boxed `.trivyignore` entries
+  instead (owner + 2026-10-13 review date) rather than bump to an unverified
+  version — see the file for the full justification. Re-triage before that
+  date with a real Maven Central / NVD lookup once one is possible.
 - **Digest mismatch**: structurally prevented by ADR 0005's design
   (`release.yml` never rebuilds), verified at runtime by check #4 above.
 - **Testcontainers without Docker**: `ubuntu-latest` GitHub runners ship

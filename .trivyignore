@@ -4,12 +4,27 @@
 # and a review/expiry date. An entry past its expiry date should be treated as
 # a build failure waiting to happen — re-run Trivy and either fix or renew it.
 #
-# No entries yet. Keep this file's header even when empty so the first real
-# acceptance has a format to follow, e.g.:
-#
-# CVE-2024-XXXXX
-# # Justification: fixed only in a major bump of <lib> that breaks <feature>;
-# # tracked upstream at <issue link>. No known exploit path in our usage
-# # (we don't call the affected code path).
-# # Owner: babitha.bollu@gmail.com
-# # Review-by: 2026-12-31
+# CVE-2026-68525
+# Justification: flagged in embedded Apache Tomcat, pulled in transitively via
+# spring-boot-starter-webmvc off spring-boot-starter-parent 4.1.0. Could not
+# verify a patched spring-boot-starter-parent version against Maven Central
+# at the time this was triaged — the search index doesn't list any
+# org.springframework.boot:spring-boot-starter-parent release at or above
+# 4.x, only up to 3.5.3, so there's no way to confirm which (if any) parent
+# bump actually carries the fix without guessing. Accepted short-term rather
+# than bump to an unverified version; re-triage before expiry with a real
+# registry lookup.
+# Owner: babitha.bollu@gmail.com
+# Review-by: 2026-10-13
+
+# CVE-2026-65905
+# Justification: same root cause/blocker as CVE-2026-68525 above (embedded
+# Tomcat via spring-boot-starter-parent 4.1.0; no verifiable patched parent
+# version found on Maven Central at triage time).
+# Owner: babitha.bollu@gmail.com
+# Review-by: 2026-10-13
+
+# CVE-2026-65182
+# Justification: same root cause/blocker as CVE-2026-68525 above.
+# Owner: babitha.bollu@gmail.com
+# Review-by: 2026-10-13
