@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.0.1...petclinic-v1.0.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* race condition — release.yml ran concurrently with ci.yml, not after it ([3e51464](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/3e5146451718a4ab7ad90bd2fe3c295bf047ab5c))
+* skip release-please's Maven SNAPSHOT bump PR ([ec50cfe](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/ec50cfef8e6c3ba8af9e73ade7ceadf3937b466b))
+
 ## [1.0.1](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.0.0...petclinic-v1.0.1) (2026-09-29)
 
 
