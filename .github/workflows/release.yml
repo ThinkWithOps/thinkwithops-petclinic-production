@@ -86,8 +86,9 @@ jobs:
             "${IMAGE_NAME}@${{ steps.digest.outputs.digest }}"
       - name: Prove digest equality
         run: |
-          promoted=$(docker buildx imagetools inspect "${IMAGE_NAME}:${{ steps.tags.outputs.target }}" --format '{{json .Manifest}}' | grep -o '"digest":"[^"]*"' | head -1)
+          docker pull "${IMAGE_NAME}:${{ steps.tags.outputs.target }}"
+          promoted=$(docker image inspect "${IMAGE_NAME}:${{ steps.tags.outputs.target }}" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
           echo "Source digest:    ${{ steps.digest.outputs.digest }}"
-          echo "Promoted manifest: $promoted"
-          [[ "$promoted" == *"${{ steps.digest.outputs.digest }}"* ]] || { echo "DIGEST MISMATCH"; exit 1; }
+          echo "Promoted digest:  $promoted"
+          [[ "$promoted" == "${{ steps.digest.outputs.digest }}" ]] || { echo "DIGEST MISMATCH"; exit 1; }
           echo "Digest equality proven: same image, no rebuild."
