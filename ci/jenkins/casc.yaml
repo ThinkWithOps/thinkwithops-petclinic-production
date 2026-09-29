@@ -1,0 +1,38 @@
+# Jenkins Configuration as Code. Credentials themselves (Nexus/Sonar tokens)
+# are NOT here — they're created via the Jenkins UI/CLI on first run and
+# stored as Jenkins credentials, per scripts/ci-stack-up.sh's printed
+# instructions. This file only wires up the pipeline job and the credential
+# IDs the Jenkinsfile expects to already exist.
+jenkins:
+  systemMessage: "ThinkWithOps PetClinic — self-hosted CI stack (Jenkins + SonarQube + Nexus)"
+  numExecutors: 2
+  disableRememberMe: true
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: ${JENKINS_ADMIN_USER:-admin}
+          password: ${JENKINS_ADMIN_PASSWORD}
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: http://localhost:8090/
+
+jobs:
+  - script: >
+      pipelineJob('petclinic-ci') {
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/ThinkWithOps/thinkwithops-petclinic-production.git') }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }

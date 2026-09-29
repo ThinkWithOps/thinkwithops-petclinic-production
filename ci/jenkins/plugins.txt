@@ -1,0 +1,15 @@
+# Jenkins plugins, pinned. Installed at image build time by the official
+# jenkins/jenkins image's install-plugins mechanism (referenced by
+# ci/compose.yaml). Update versions deliberately, one PR at a time.
+configuration-as-code:1825.v40b_dc65f5807
+workflow-aggregator:600.vb_57cdd26fdd7
+git:5.7.0
+pipeline-utility-steps:2.19.0
+credentials-binding:687.v620b_15b_c451a_
+docker-workflow:597.v7ea_c5346c81c
+sonar:2.19
+nexus-artifact-uploader:2.9
+htmlpublisher:1.35
+junit:1.75
+timestamper:1.28
+ws-cleanup:0.46

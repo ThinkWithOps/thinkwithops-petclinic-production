@@ -52,6 +52,8 @@ _local/
 .env
 .env.*
 !.env.example
+!ci/.env.example
+ci/.env
 *.pem
 *.key
 *.tfstate
