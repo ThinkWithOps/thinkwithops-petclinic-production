@@ -9,6 +9,8 @@
 ![Java](https://img.shields.io/badge/Java-17-437291?style=flat&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.0-6DB33F?style=flat&logo=springboot&logoColor=white)
 ![License](https://img.shields.io/badge/App_License-Apache_2.0-green?style=flat)
+[![CI](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml/badge.svg)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=thinkwithops-petclinic-production&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=thinkwithops-petclinic-production)
 
 ---
 
@@ -20,6 +22,8 @@
 - [Milestones](#milestones)
 - [V1 — Containerized Runtime](#v1--containerized-runtime)
 - [V1 Architecture](#v1-architecture)
+- [V2 — CI/CD Pipeline](#v2--cicd-pipeline)
+- [V2 Architecture](#v2-architecture)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Run Locally](#run-locally)
@@ -47,6 +51,7 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 | Part | Tag | Video | Focus |
 |---|---|---|---|
 | V1 | [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | _coming soon_ | Hardened Docker image, PostgreSQL, Nginx reverse proxy, health-gated startup, first fully verified deploy |
+| V2 | `v2-cicd` | _coming soon_ | Build-once/promote-by-digest CI/CD: quality gate, vulnerability scanning, config scanning, semantic release, self-hosted Jenkins parity |
 
 ---
 
@@ -54,8 +59,8 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 
 | Tag | Focus |
 |---|---|
-| [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **current, verified** |
-| `v2-cicd` | CI build/test/publish pipeline |
+| [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **verified** |
+| `v2-cicd` | Build-once/promote-by-digest CI/CD, quality/security gates, semantic release — **current** |
 | `v3-aws-iac` | Terraform-provisioned AWS infrastructure |
 | `v4-kubernetes` | Kubernetes deployment |
 
@@ -101,6 +106,34 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 
 ---
 
+## V2 — CI/CD Pipeline
+
+Starting point: V1 solved environment consistency, but building, testing, scanning, versioning, and releasing were all manual. Nothing prevented a vulnerable image, a failing quality gate, or an untested change from shipping — and there was no guarantee the image that was tested was the image that got released.
+
+V2 adds: every change is built once, tested, quality-gated (SonarQube Cloud), security-scanned (Trivy for images/dependencies, Checkov for Dockerfile/workflow config), versioned (release-please, Conventional Commits), and promoted to a release tag **by digest, with no rebuild** — with PR merges blocked on any gate failing. A self-hosted Jenkins + SonarQube + Nexus stack (`ci/`) runs the identical stage contract for environments without SaaS-runner access.
+
+## V2 Architecture
+
+```mermaid
+flowchart TD
+    PR[Pull request] --> BT[build-test: mvnw verify once]
+    BT --> QG[quality-gate: SonarQube Cloud]
+    BT --> IMG[image: build + export artifact, not pushed]
+    IMG --> TR[trivy: scan that exact image; SARIF + SBOM]
+    PR --> CS[config-scan: checkov + shellcheck]
+    QG & TR & CS -->|required checks green| MERGE[Merge to main]
+    MERGE --> PUB[publish: push the SAME image to GHCR as sha-short]
+    PUB --> RP[release-please: version PR from Conventional Commits]
+    RP --> REL[Release created]
+    REL --> PROMOTE[promote-by-digest: retag sha-short -> petclinic-vX.Y.Z, no rebuild]
+```
+
+**Build-once, promote-by-digest:** the image built and Trivy-scanned in the `image`/`trivy` jobs is the exact `image.tar` the `publish` job loads and pushes — never rebuilt. `release.yml` never runs `docker build`; it retags that same pushed digest to the release's semver tag and proves the digests match in the job log. Full write-up: [`docs/architecture/v2-cicd.md`](docs/architecture/v2-cicd.md).
+
+Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
+
+---
+
 ## Tech Stack
 
 | Technology | Role |
@@ -112,7 +145,12 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 | Docker Compose v2 | Networks, health-gated startup order, resource limits, log rotation |
 | Bash + `set -euo pipefail` | `deploy.sh` / `verify.sh` / `cleanup.sh` and their building blocks |
 | Python 3 (stdlib only) | Static/runtime assertions called from the shell scripts |
-| GitHub Actions | Maven/Gradle build workflows, actions pinned by commit SHA |
+| GitHub Actions | `ci.yml` (build/test/quality-gate/scan/publish), `release.yml` (release-please + digest promotion) |
+| SonarQube Cloud + self-hosted SonarQube | PR-blocking quality gate (Cloud); Jenkins-path quality gate (local, via `ci/compose.yaml`) |
+| Trivy | Image + dependency vulnerability scan, CycloneDX SBOM |
+| Checkov | Dockerfile + GitHub Actions config scan |
+| release-please | Conventional-Commits-driven semantic versioning, changelog, GitHub Releases |
+| Jenkins + Nexus (self-hosted, `ci/`) | Same stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs |
 
 ---
 
@@ -123,7 +161,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 - Linux amd64 engine (the pinned Alpine JRE image targets `linux/amd64`)
 - Port `8080` free on host — some cloud/remote shells already bind a web terminal to it; check with `sudo ss -tlnp | grep 8080` and set `HTTP_PORT=8081` in `docker/.env` if occupied
 
-No AWS/Azure/GCP account is needed for V1.
+No AWS/Azure/GCP account is needed for V1. V2's GitHub Actions path needs no local runtime at all (it runs entirely in CI); running the self-hosted Jenkins stack locally needs `ci/compose.yaml`'s host requirements documented below.
 
 ---
 
@@ -139,11 +177,26 @@ cd thinkwithops-petclinic-production
 
 `deploy.sh` prints the URL once Nginx is healthy (defaults to `http://127.0.0.1:8080`).
 
+### How releases work
+
+Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`; all four are required checks (see [`docs/branch-protection.md`](docs/branch-protection.md)) before merge is allowed. On merge to `main`, the exact image that was scanned is pushed to GHCR tagged `sha-<short>`. Commits following [Conventional Commits](https://www.conventionalcommits.org/) accumulate into a release-please-managed PR; merging that PR cuts a GitHub Release tagged `petclinic-vX.Y.Z` and retags the already-scanned `sha-<short>` image to that version — no rebuild, same digest.
+
+### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
+
+```bash
+./scripts/ci-stack-up.sh          # brings up ci/compose.yaml, prints first-run manual steps
+./scripts/ci-stack-up.sh --down   # stop the stack
+```
+
+Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedded Elasticsearch (the script prints the exact `sysctl` command if needed). First run needs a few manual steps in the Jenkins/SonarQube/Nexus UIs to create tokens — the script prints them; nothing is stored in git.
+
 ---
 
 ## Validation
 
-Full checklist with expected output: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md). Covers container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, and measured image size.
+V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
+
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **PENDING RUNTIME VERIFICATION** — not yet run against a live GitHub Actions/Docker environment.
 
 ---
 
@@ -164,6 +217,11 @@ Full checklist with expected output: [`docs/validation/v1-containerized.md`](doc
 | Debugging a real `nginx -t` failure (unescaped `;` inside an unquoted regex terminating the directive early) | Reading nginx's actual error message and config-parsing rules instead of guessing at syntax |
 | Debugging lost executable bits on `gradlew`/`mvnw`/shell scripts after a Windows checkout | Git file-mode tracking (`100644` vs `100755`) as a real cross-platform CI failure mode |
 | Debugging a real deploy — port already bound by the host's own process, missing `python3` on a minimal image | Systematic diagnosis (`ss -tlnp`, `/etc/os-release`) instead of guessing fixes |
+| Build once, scan that exact artifact, promote it by digest at release | Why "rebuild at release time" silently breaks the "tested image == shipped image" guarantee |
+| Two SonarQube deployments for one quality gate (Cloud for PR decoration, local for the Jenkins path) | Matching the tool to what the runner can actually reach, not defaulting to "just self-host everything" |
+| `.trivyignore`/`.checkov.yaml` with a justification/owner/expiry format per entry | Making *accepted* risk visible and time-boxed instead of a permanent, unexplained suppression |
+| Removing `versions-maven-plugin` once `release-please` also writes `pom.xml`'s version | Recognizing a two-writer conflict before it causes a real version clobber, not after |
+| Pinning GitHub Actions by tag today with an explicit TODO instead of fabricating unverified commit SHAs | Honest documentation of a real gap beats a fake-looking "verified" pin — see ADR 0006 |
 
 ---
 
@@ -186,10 +244,26 @@ scripts/
 └── lib/common.sh             # shared helpers (die, need, compose, config_value, ...)
 
 docs/
-├── architecture/v1-containerized.md
-├── adr/000{1..4}-*.md
-├── validation/v1-containerized.md
+├── architecture/v1-containerized.md, v2-cicd.md
+├── adr/000{1..9}-*.md
+├── validation/v1-containerized.md, v2-cicd.md
+├── branch-protection.md      # required-checks setup, documented as steps
+├── ci-portability.md         # stage contract mapped to GitLab CI syntax
 └── troubleshooting.md
+
+.github/workflows/
+├── ci.yml         # build-test, quality-gate, image, trivy, config-scan, publish
+└── release.yml    # release-please + promote-by-digest
+
+ci/
+├── compose.yaml               # Jenkins + SonarQube (+Postgres) + Nexus
+├── jenkins/                   # Dockerfile (plugins baked in), plugins.txt, casc.yaml
+├── settings.xml.template       # Maven->Nexus settings; filled from a Jenkins credential at deploy time
+└── .env.example
+
+Jenkinsfile                    # same stage contract as ci.yml, for self-hosted runners
+release-please-config.json / .release-please-manifest.json
+.trivyignore / .checkov.yaml / sonar-project.properties
 ```
 
 ---
@@ -213,6 +287,11 @@ Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubl
 | `docker image inspect petclinic:local --format 'Size: {{.Size}} bytes'` | Measured image size (see ADR 0001's budget) |
 | `docker history --no-trunc petclinic:local` | Full per-layer size breakdown |
 | `./scripts/static-check.sh` | Shellcheck + Compose config validation, no daemon required |
+| `./mvnw -B -ntp verify` | Run the exact build-test stage CI runs (compile + test + coverage) |
+| `trivy image --severity CRITICAL --ignore-unfixed <image>` | Reproduce the `trivy` CI job locally |
+| `checkov --config-file .checkov.yaml` | Reproduce the `config-scan` CI job locally |
+| `./scripts/ci-stack-up.sh` / `--down` | Bring up / tear down the self-hosted Jenkins + SonarQube + Nexus stack |
+| `docker buildx imagetools inspect ghcr.io/<repo>:<tag>` | Check a GHCR image's manifest digest (used to verify digest-promotion) |
 
 ---
 
