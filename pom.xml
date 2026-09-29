@@ -35,6 +35,18 @@
     <maven-checkstyle.version>3.6.0</maven-checkstyle.version>
     <nohttp-checkstyle.version>0.0.11</nohttp-checkstyle.version>
     <spring-format.version>0.0.47</spring-format.version>
+
+    <!-- sonar-maven-plugin reads sonar.* from pom.xml properties / -D flags,
+    NOT from sonar-project.properties (that file only applies to the
+    standalone sonar-scanner CLI). sonar.organization is passed as -D per
+    invocation instead, since it differs between SonarQube Cloud (ci.yml)
+    and local Community Edition (Jenkinsfile, which doesn't support
+    organizations at all). See docs/ci-portability.md. -->
+    <sonar.projectKey>ThinkWithOps_thinkwithops-petclinic-production</sonar.projectKey>
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    <!-- Compiled CSS is generated from src/main/scss by libsass-maven-plugin,
+    not hand-authored, and would otherwise skew duplication metrics. -->
+    <sonar.exclusions>src/main/resources/static/resources/css/**</sonar.exclusions>
   </properties>
 
   <dependencies>

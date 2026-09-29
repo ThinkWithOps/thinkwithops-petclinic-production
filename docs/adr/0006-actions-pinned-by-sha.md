@@ -1,6 +1,6 @@
 # ADR 0006: pin GitHub Actions and tool responsibilities
 
-Status: partially accepted — SHA pinning is a documented TODO, not yet done (see below).
+Status: accepted — SHA pinning done (2026-09-29, via `gh api repos/<owner>/<repo>/git/refs/tags/<tag>` once network/`gh` access was available; see Trade-offs).
 
 ## Problem and options
 
@@ -15,12 +15,12 @@ Two separate problems bundled into one ADR because they're both "which tool does
 - GitHub Actions is primary CI/CD for this public repo (no infra to host, native PR integration).
 - SonarQube Cloud is the quality gate on GitHub PRs specifically because SonarQube Community Edition cannot decorate PRs with inline findings, and a locally-hosted SonarQube instance is not reachable by GitHub-hosted runners without exposing it publicly (not something this project accepts as a trust boundary). Self-hosted SonarQube (`ci/compose.yaml`) exists only for the Jenkins path, where the runner *can* reach it because they're on the same host/network.
 - Checkov covers Dockerfile + GitHub Actions config scanning; no separate hadolint step — Checkov's `dockerfile` framework covers the same class of findings (missing USER, ADD vs COPY, etc.) and adding a second tool for overlapping checks would violate the "no duplicate tools" rule.
-- `.github/workflows/ci.yml` and `.github/workflows/release.yml` currently pin actions by **tag**, not commit SHA, with an explicit `# TODO: pin to commit SHA` comment on every `uses:` line. This is a deliberate, honestly-labeled gap: this ADR's author (an AI agent, at the time of v2's initial build) did not have a way to independently verify real commit SHAs for each action version without a live network/registry lookup, and shipping fabricated-looking SHA values would be worse than an honest floating-tag pin with a visible TODO — a wrong SHA that merely *looks* verified is a worse security posture than a floating tag everyone knows is floating.
+- `.github/workflows/ci.yml` and `.github/workflows/release.yml` pin every action by commit SHA, with the released version kept as a trailing comment (e.g. `uses: actions/checkout@11d5960... # v4.2.2`). When this file was first written, the author (an AI agent, at v2's initial build) had no way to independently verify real commit SHAs without a live registry lookup, and shipped tag-only pins with an explicit `# TODO: pin to commit SHA` on every line rather than fabricate SHA values that would look verified but weren't — a wrong SHA that merely *looks* verified is a worse security posture than a floating tag everyone knows is floating. Once `gh` CLI access to the real GitHub API was available, every SHA was resolved and verified (`gh api repos/<owner>/<repo>/git/refs/tags/<tag>`) and the TODOs closed.
 
 ## Trade-offs
 
-Floating tags are the accepted interim risk. Every workflow file marks exactly where SHA pinning needs to happen, so closing this gap is a mechanical, reviewable follow-up (resolve each `uses: owner/repo@vX` to its tag's commit SHA, e.g. via `gh api repos/<owner>/<repo>/git/refs/tags/<tag>`) rather than a rediscovery task.
+SHA-pinned actions never auto-update; a version bump now requires a deliberate PR that re-resolves the tag's SHA, rather than picking up patches silently. That's the point — see Enterprise scale below for how to make the bump itself low-effort without giving up the pin.
 
 ## Enterprise scale
 
-At scale: pin every action by SHA (close the TODO above), enable Dependabot/Renovate for Actions so SHA bumps are automated PRs, and consider an internal Actions proxy/allowlist so only vetted actions can run at all.
+At scale: enable Dependabot/Renovate for GitHub Actions so SHA bumps arrive as automated PRs (they resolve and verify the new SHA for you), and consider an internal Actions proxy/allowlist so only vetted actions can run at all.

@@ -108,7 +108,7 @@ Only failure modes that genuinely arise from this architecture. Format: symptom 
 
 **Diagnose:** open the SonarQube Cloud link posted as a PR check — it lists exactly which new lines are uncovered/flagged, not the whole file.
 
-**Fix:** add a test for the new lines, or, if the gate's threshold is genuinely wrong for this change (e.g. generated code), adjust `sonar-project.properties`' exclusions with a documented reason — never suppress by disabling the gate itself.
+**Fix:** add a test for the new lines, or, if the gate's threshold is genuinely wrong for this change (e.g. generated code), adjust `pom.xml`'s `sonar.exclusions` property with a documented reason — never suppress by disabling the gate itself.
 
 ---
 

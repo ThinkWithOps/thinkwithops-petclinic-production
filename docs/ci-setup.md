@@ -15,9 +15,12 @@ by running the pipeline for real and fixing what it hit; see the ADRs in
 3. Import this repository as a SonarCloud project. Note the **Organization
    Key** and **Project Key** it assigns (Project → Administration →
    Information, or the org's own settings page).
-4. Make sure `sonar-project.properties` at the repo root has matching
-   `sonar.organization` / `sonar.projectKey` values — edit and commit if
-   SonarCloud assigned different ones than what's currently there.
+4. Make sure `pom.xml`'s `sonar.projectKey` property and `ci.yml`'s
+   `-Dsonar.organization=` flag match what SonarCloud assigned — edit and
+   commit if they don't (sonar-maven-plugin reads config from `pom.xml`
+   properties / `-D` flags, not a `sonar-project.properties` file — that
+   file only applies to the standalone `sonar-scanner` CLI, which this repo
+   doesn't use).
 5. Generate a token: My Account (top-right avatar) → Security → Generate
    Token. Copy it immediately — it's shown once.
 6. In GitHub: repo → Settings → Secrets and variables → Actions → New

@@ -221,7 +221,7 @@ V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, di
 | Two SonarQube deployments for one quality gate (Cloud for PR decoration, local for the Jenkins path) | Matching the tool to what the runner can actually reach, not defaulting to "just self-host everything" |
 | `.trivyignore`/`.checkov.yaml` with a justification/owner/expiry format per entry | Making *accepted* risk visible and time-boxed instead of a permanent, unexplained suppression |
 | Removing `versions-maven-plugin` once `release-please` also writes `pom.xml`'s version | Recognizing a two-writer conflict before it causes a real version clobber, not after |
-| Pinning GitHub Actions by tag today with an explicit TODO instead of fabricating unverified commit SHAs | Honest documentation of a real gap beats a fake-looking "verified" pin — see ADR 0006 |
+| Shipping a tag-only pin with an explicit TODO first, then closing it with real `gh api`-verified commit SHAs once network access existed | Honest documentation of a real gap beats a fake-looking "verified" pin at the time you can't check it — see ADR 0006 |
 
 ---
 
@@ -263,7 +263,7 @@ ci/
 
 Jenkinsfile                    # same stage contract as ci.yml, for self-hosted runners
 release-please-config.json / .release-please-manifest.json
-.trivyignore / .checkov.yaml / sonar-project.properties
+.trivyignore / .checkov.yaml   # sonar.* config lives in pom.xml properties
 ```
 
 ---

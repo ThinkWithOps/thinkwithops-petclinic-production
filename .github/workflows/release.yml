@@ -1,7 +1,6 @@
 name: Release
 
-# SUPPLY-CHAIN NOTE: pin all `uses:` to commit SHAs before production use.
-# See docs/adr/0006-actions-pinned-by-sha.md.
+# All actions below are pinned to a commit SHA. See docs/adr/0006-actions-pinned-by-sha.md.
 
 on:
   push:
@@ -29,7 +28,7 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       sha: ${{ steps.release.outputs.sha }}
     steps:
-      - uses: googleapis/release-please-action@v4 # TODO: pin to commit SHA
+      - uses: googleapis/release-please-action@8b8fd2cc23b2e18957157a9d923d75aa0c6f6ad5 # v4.1.3
         id: release
         with:
           config-file: release-please-config.json
@@ -48,7 +47,7 @@ jobs:
       # the org/repo's actual casing, which Docker rejects outright.
       - name: Normalize image name to lowercase
         run: echo "IMAGE_NAME=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-      - uses: docker/login-action@v3 # TODO: pin to commit SHA
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
