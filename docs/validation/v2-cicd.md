@@ -16,6 +16,13 @@ until each row below is filled in with a real result.
 | 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | `promote-by-digest` job log shows "Digest equality proven"; `docker buildx imagetools inspect ghcr.io/<repo>:petclinic-vX.Y.Z` and `ghcr.io/<repo>:sha-<short>` report the same manifest digest |
 | 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | Jenkinsfile stages all green; JAR visible in Nexus's `maven-releases` repository browse UI |
 
+**Note on `ci/jenkins/Dockerfile`'s HEALTHCHECK**: uses `wget`, unverified
+against a real image build — the official `jenkins/jenkins` base image's
+exact tool availability wasn't confirmed live. If the built image lacks
+`wget`, the healthcheck will always report unhealthy (nothing in
+`ci/compose.yaml` currently gates on Jenkins's health status, so this
+wouldn't block the stack from running, but should be fixed if hit).
+
 ## Realistic problems this milestone documents (from the spec, verified against this repo's actual config)
 
 - **Quality gate failing on new-code coverage**: SonarQube's default gate is
