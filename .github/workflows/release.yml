@@ -2,8 +2,16 @@ name: Release
 
 # All actions below are pinned to a commit SHA. See docs/adr/0006-actions-pinned-by-sha.md.
 
+# Triggered by ci.yml finishing, not by push directly. Hit for real: on a
+# plain `push: branches: [main]` trigger, this workflow ran concurrently
+# with ci.yml and tried to pull the sha-<short> image before ci.yml's
+# `publish` job (5-6 minutes) had pushed it — "manifest unknown" every time,
+# 100% reproducible, not a flake. workflow_run waits for CI to fully
+# complete (success or failure) before this workflow even starts.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   # Manual recovery path: see ci.yml's workflow_dispatch comment.
   workflow_dispatch:
@@ -21,6 +29,7 @@ env:
 jobs:
   release-please:
     name: release-please
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

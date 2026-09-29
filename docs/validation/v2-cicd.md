@@ -14,7 +14,7 @@ Jenkins/Nexus paths are still not runtime-verified — see checks 4 and 5.
 | 1 | PR with a failing test is blocked | Push a commit that breaks a test, open a PR | Not yet deliberately tested; `build-test` itself is confirmed working (green on real runs) |
 | 2 | A CRITICAL vulnerability blocks the pipeline | (Happened organically, not via a deliberately added test dependency) | **Verified for real**: the first real `trivy` run found 3 genuine fixable-CRITICAL Tomcat CVEs and failed the job exactly as designed — see the "Hit for real" note below |
 | 3 | A push to `main` goes fully green | Push to `main` | **Verified**: run `36608891090`, all 6 jobs green. PR-merge-specific gating (branch protection required checks) not yet separately confirmed — depends on `docs/branch-protection.md` being applied |
-| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Partially proven, one release permanently incomplete, retry in progress** — see the "Hit for real" note below |
+| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Root cause found and fixed (race condition), two releases permanently incomplete, PENDING confirmation on next cycle** — see the "Hit for real" notes below |
 | 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | Not yet run — needs a real Docker engine |
 
 **Note on `ci/jenkins/Dockerfile`'s HEALTHCHECK**: uses `wget`, unverified
@@ -85,6 +85,18 @@ wouldn't block the stack from running, but should be fixed if hit).
   historical SHA). Confirmed the underlying push-trigger works normally on
   every push before and after this one incident — treating it as a one-off,
   not a systemic issue, unless it recurs.
+- **Hit for real (the actual root cause, 100% reproducible, not a one-off):
+  `release.yml` on `push: branches: [main]` runs concurrently with
+  `ci.yml`, not after it.** `promote-by-digest` failed with
+  `manifest unknown` on every push-triggered `Release` run tested (three in
+  a row), always within ~30 seconds, because `ci.yml`'s `publish` job takes
+  5-6 minutes and hadn't pushed the `sha-<short>` image yet. **Fixed**:
+  changed `release.yml`'s trigger to
+  `workflow_run: workflows: [CI], types: [completed], branches: [main]`,
+  gated on `github.event.workflow_run.conclusion == 'success'` — this makes
+  `release.yml` wait for `ci.yml` to fully finish, and only proceed if it
+  passed, before starting at all. PENDING confirmation on the next real
+  release cycle.
 - **nohttp/checkstyle failures from new files**: **confirmed clean** —
   `build-test` passed for real; this milestone's files are all outside
   `src/`, so the existing `maven-checkstyle-plugin` bindings had nothing new
