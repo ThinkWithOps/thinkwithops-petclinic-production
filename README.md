@@ -10,7 +10,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.0-6DB33F?style=flat&logo=springboot&logoColor=white)
 ![License](https://img.shields.io/badge/App_License-Apache_2.0-green?style=flat)
 [![CI](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml/badge.svg)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=thinkwithops-petclinic-production&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=thinkwithops-petclinic-production)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ThinkWithOps_thinkwithops-petclinic-production&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ThinkWithOps_thinkwithops-petclinic-production)
 
 ---
 
@@ -196,7 +196,7 @@ Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedde
 
 V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
 
-V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **PENDING RUNTIME VERIFICATION** — not yet run against a live GitHub Actions/Docker environment.
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs; release-digest-promotion and the Jenkins/Nexus path are still pending.
 
 ---
 
@@ -222,6 +222,9 @@ V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, di
 | `.trivyignore`/`.checkov.yaml` with a justification/owner/expiry format per entry | Making *accepted* risk visible and time-boxed instead of a permanent, unexplained suppression |
 | Removing `versions-maven-plugin` once `release-please` also writes `pom.xml`'s version | Recognizing a two-writer conflict before it causes a real version clobber, not after |
 | Shipping a tag-only pin with an explicit TODO first, then closing it with real `gh api`-verified commit SHAs once network access existed | Honest documentation of a real gap beats a fake-looking "verified" pin at the time you can't check it — see ADR 0006 |
+| Debugging a release-please PR that opened but showed zero CI checks | GitHub's anti-recursion guard: a PR opened by the default `GITHUB_TOKEN` never triggers other workflows — needs a PAT to look like a real user |
+| Debugging Trivy failing silently mid-install with no error text | Not every `exit code 1` is the check working as designed — read past the summary to the actual tool output before assuming a real finding |
+| A real `.trivyignore` entry that did nothing because every line, including the CVE ID, was `#`-commented | The file's own header example was written as illustrative comment text — copying its shape without un-commenting the ID line silently no-ops the suppression |
 
 ---
 
@@ -249,6 +252,7 @@ docs/
 ├── validation/v1-containerized.md, v2-cicd.md
 ├── branch-protection.md      # required-checks setup, documented as steps
 ├── ci-portability.md         # stage contract mapped to GitLab CI syntax
+├── ci-setup.md                # one-time SonarCloud/GitHub/GHCR setup, done once
 └── troubleshooting.md
 
 .github/workflows/

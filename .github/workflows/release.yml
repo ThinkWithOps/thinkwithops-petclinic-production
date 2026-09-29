@@ -28,9 +28,15 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       sha: ${{ steps.release.outputs.sha }}
     steps:
+      # A PR opened with the default GITHUB_TOKEN does not trigger other
+      # workflow runs (GitHub's anti-recursion guard on workflow-authored
+      # events), so ci.yml would never run on this PR and its required
+      # checks could never go green. RELEASE_PLEASE_TOKEN is a PAT so the PR
+      # is authored by a real user instead. See docs/ci-setup.md.
       - uses: googleapis/release-please-action@8b8fd2cc23b2e18957157a9d923d75aa0c6f6ad5 # v4.1.3
         id: release
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 

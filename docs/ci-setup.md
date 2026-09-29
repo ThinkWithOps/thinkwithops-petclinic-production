@@ -31,12 +31,14 @@ by running the pipeline for real and fixing what it hit; see the ADRs in
    CI-based analysis on the same project fails with "You are running CI
    analysis while Automatic Analysis is enabled." Keep CI-based only.
 
-## 2. Allow GitHub Actions to open the release-please PR
+## 2. Let the release-please PR actually run CI
 
-`release.yml`'s `release-please` job needs to open/update a pull request
-using the workflow's own `GITHUB_TOKEN`. This is denied by default at the
-**organization** level for orgs, and the repo-level checkbox stays greyed
-out until the org allows it.
+Two separate blockers here, both hit for real while building this milestone.
+
+**2a. Allow GitHub Actions to open the PR at all.** `release.yml`'s
+`release-please` job needs to open/update a pull request. This is denied by
+default at the **organization** level for orgs, and the repo-level checkbox
+stays greyed out until the org allows it.
 
 1. If the repo is under a GitHub **organization**: go to
    `github.com/organizations/<org>/settings/actions` → Workflow permissions
@@ -45,9 +47,27 @@ out until the org allows it.
 2. Then, repo → Settings → Actions → General → Workflow permissions → the
    same checkbox should now be clickable there too (some orgs inherit the
    org-level setting automatically and skip the repo toggle entirely).
-3. If you don't have access to the organization's settings, this step needs
-   an org owner — there's no repo-level workaround that doesn't involve a
-   personal access token (worse security posture; not used here).
+
+**2b. Make that PR actually trigger `ci.yml`.** Even with 2a done, a PR
+opened using the default `GITHUB_TOKEN` does **not** trigger other workflow
+runs — this is GitHub's anti-recursion guard on workflow-authored events,
+not a permission you can toggle. Hit this for real: the release-please PR
+showed zero CI checks, and branch protection can never go green on a PR
+with no checks at all. Fix: give `release-please-action` a personal access
+token instead.
+
+1. Create a PAT: your GitHub avatar → Settings → Developer settings →
+   Personal access tokens → Fine-grained tokens → New token. Scope it to
+   this repository only, with **Contents: Read and write** and
+   **Pull requests: Read and write** permissions.
+2. Repo → Settings → Secrets and variables → Actions → New repository
+   secret → name `RELEASE_PLEASE_TOKEN`, paste the PAT, Save.
+3. `release.yml` already passes `token: ${{ secrets.RELEASE_PLEASE_TOKEN }}`
+   to `release-please-action` — nothing else to change once the secret
+   exists.
+
+If you don't have access to create a PAT or the org's settings, this needs
+an org owner or a bot/machine account with a PAT of its own.
 
 ## 3. GHCR (container registry) push permission
 
