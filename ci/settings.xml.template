@@ -5,9 +5,9 @@
   into a tempfile at deploy time by substituting {{NEXUS_USER}}/{{NEXUS_PASS}}
   from the Jenkins "NEXUS_DEPLOY_CREDENTIALS" credential, and deletes it on exit.
 -->
-<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+<settings xmlns="https://maven.apache.org/SETTINGS/1.2.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+          xsi:schemaLocation="https://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
   <servers>
     <server>
       <id>nexus</id>
