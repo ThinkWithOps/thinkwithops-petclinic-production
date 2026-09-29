@@ -8,6 +8,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Manual recovery path: a push/merge that GitHub's webhook never turns
+  # into a workflow run (observed for real on a PR merge that showed zero
+  # check-runs on its merge commit) has no other way to re-trigger CI
+  # against that exact commit.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

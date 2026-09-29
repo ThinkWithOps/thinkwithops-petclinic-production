@@ -5,6 +5,8 @@ name: Release
 on:
   push:
     branches: [main]
+  # Manual recovery path: see ci.yml's workflow_dispatch comment.
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.workflow }}
