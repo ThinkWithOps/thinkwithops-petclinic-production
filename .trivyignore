@@ -1,0 +1,15 @@
+# Trivy vulnerability ignore list.
+#
+# Every entry below must carry: the CVE id, a one-line justification, an owner,
+# and a review/expiry date. An entry past its expiry date should be treated as
+# a build failure waiting to happen — re-run Trivy and either fix or renew it.
+#
+# No entries yet. Keep this file's header even when empty so the first real
+# acceptance has a format to follow, e.g.:
+#
+# CVE-2024-XXXXX
+# # Justification: fixed only in a major bump of <lib> that breaks <feature>;
+# # tracked upstream at <issue link>. No known exploit path in our usage
+# # (we don't call the affected code path).
+# # Owner: babitha.bollu@gmail.com
+# # Review-by: 2026-12-31

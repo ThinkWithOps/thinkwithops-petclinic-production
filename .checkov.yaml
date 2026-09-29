@@ -1,0 +1,21 @@
+# Checkov IaC/config scanner configuration.
+#
+# Scope: Dockerfile and GitHub Actions workflows only in v2. Checkov does NOT
+# scan Compose files (docker/compose.yaml, ci/compose.yaml) — that gap is
+# accepted and documented, not silently ignored. Terraform arrives in v3;
+# Helm/Kubernetes manifests in v4 — this file's `framework:` list grows then.
+framework:
+  - dockerfile
+  - github_actions
+
+directory:
+  - .
+
+# No skips yet. docker/Dockerfile already runs non-root (USER 10001:10001),
+# has a HEALTHCHECK, and pins base images by digest, so it's expected to pass
+# clean on first run. Add entries here only with a documented reason if that
+# changes, in the same format as .trivyignore.
+skip-check: []
+
+compact: true
+quiet: false
