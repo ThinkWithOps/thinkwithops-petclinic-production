@@ -16,14 +16,59 @@ check 5.
 | 2 | A CRITICAL vulnerability blocks the pipeline | (Happened organically, not via a deliberately added test dependency) | **Verified for real**: the first real `trivy` run found 3 genuine fixable-CRITICAL Tomcat CVEs and failed the job exactly as designed — see the "Hit for real" note below |
 | 3 | A push to `main` goes fully green | Push to `main` | **Verified**: run `36608891090`, all 6 jobs green. PR-merge-specific gating (branch protection required checks) not yet separately confirmed — depends on `docs/branch-protection.md` being applied |
 | 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Verified for real** (2026-10-01): release `petclinic-v1.1.0` (PR #7), Release run `36888363516`; `promote-by-digest` logged source and promoted digest both `sha256:bd013a5d24c58e1435a0c1ec626d0fdfae635de916fc9346f9bc066719f95f45` and `Digest equality proven: same image, no rebuild.` Releases 1.0.0 and 1.0.2 stayed incomplete (see notes below) |
-| 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | Not yet run — needs a real Docker engine |
+| 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | **Implementation prepared; runtime verification pending KodeKloud Part B.** Not run yet — needs a real Docker engine. See the Jenkins notes below |
 
-**Note on `ci/jenkins/Dockerfile`'s HEALTHCHECK**: uses `wget`, unverified
-against a real image build — the official `jenkins/jenkins` base image's
-exact tool availability wasn't confirmed live. If the built image lacks
-`wget`, the healthcheck will always report unhealthy (nothing in
-`ci/compose.yaml` currently gates on Jenkins's health status, so this
-wouldn't block the stack from running, but should be fixed if hit).
+### Jenkins/Nexus path: what is and isn't known
+
+Nothing here has been executed. The pipeline path
+`prepare -> verify -> sonar -> quality gate -> image build -> Trivy ->
+Checkov + ShellCheck -> SBOM -> Nexus` must run end to end on a real Docker
+engine before this check can be marked verified. Static checks only so far
+(`docker compose config`, `bash -n`, YAML parse — these prove syntax, not behavior). Findings from reviewing the
+path before the first run. Static fixes are prepared in the files; none has been
+runtime-verified (plugin resolution, Jenkins startup, JCasC load, healthchecks,
+Testcontainers, the Sonar webhook and the Nexus deployment are all unrun):
+
+- **Plugin pins** (also `--latest=false` so transitive dependencies are not
+  upgraded past the pinned core): several pins in `ci/jenkins/plugins.txt` did not exist on
+  the Jenkins mirror (`credentials-binding`, `docker-workflow`,
+  `configuration-as-code`, `junit`, `sonar`), which would have failed the image
+  build. Replaced with real, era-matched versions; `job-dsl` was missing but is
+  required by the `jobs:` block in `ci/jenkins/casc.yaml`.
+- **Admin credentials**: `JENKINS_ADMIN_USER/PASSWORD` were read by
+  `casc.yaml` but never passed into the container.
+- **Tools**: the Jenkins image lacked the Docker CLI/Compose/Buildx, Trivy,
+  Checkov and ShellCheck that the `Jenkinsfile` calls.
+- **Docker socket**: mounted but unusable without the host socket's group ID
+  (`DOCKER_GID`, `group_add`).
+- **SonarQube server**: the `local-sonarqube` installation the `Jenkinsfile`
+  names was not configured; the SonarQube webhook that `waitForQualityGate`
+  needs was undocumented.
+- **Healthchecks**: Jenkins, SonarQube and Nexus checks used `wget`. The
+  SonarQube image (per its upstream Dockerfile) ships `curl` and no `wget`, and
+  the Nexus image is UBI-minimal (no `wget`). All three now use `curl`. The
+  tool presence in the *pinned* images was inferred from upstream Dockerfiles,
+  not from running them — confirm on the playground.
+- **Nexus publish**: the stage previously ran `mvn deploy -DskipTests`, which
+  re-packaged a JAR that was never tested. It now deploys the verify-stage JAR
+  after a checksum check.
+- **`SHORT_SHA`**: the top-level `env.GIT_COMMIT.take(12)` is not guaranteed to
+  exist before checkout; it is now computed in an early `prepare` stage.
+- **Redeploys**: Nexus' default `maven-releases` policy rejects re-uploading the
+  same version, so re-running the pipeline after a successful publish fails the
+  last stage until the version changes or redeploy is allowed on that repo.
+- **Test databases from inside Jenkins**: `mvnw verify` runs in the Jenkins
+  container but starts databases on the host daemon. `PostgresIntegrationTests`
+  uses Spring Boot's Docker Compose support (`docker-compose.yml`, published
+  port 5432) and `MySqlIntegrationTests` uses Testcontainers; with a unix socket
+  both would resolve the host as `localhost`, i.e. the Jenkins container itself.
+  Prepared: `extra_hosts: host.docker.internal:host-gateway`,
+  `SPRING_DOCKER_COMPOSE_HOST` and `TESTCONTAINERS_HOST_OVERRIDE` on the Jenkins
+  service; no test is skipped or changed. Unverified until the `verify` stage
+  runs. Port 5432 must also be free on the host.
+
+Exact playground commands live in the (uncommitted) personal run notes; the
+required SonarQube webhook is printed by `scripts/ci-stack-up.sh`.
 
 ## Realistic problems this milestone documents (from the spec, verified against this repo's actual config)
 

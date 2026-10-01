@@ -1,18 +1,20 @@
 # V2 architecture: CI/CD pipeline
 
-Status: files complete; PENDING RUNTIME VERIFICATION on a real GitHub Actions
-run and a real Docker engine (see `docs/validation/v2-cicd.md`).
+Status: the GitHub Actions path (CI, release-please, digest promotion) is
+**runtime-verified** on real runs, including release `petclinic-v1.1.0`. The
+self-hosted Jenkins/SonarQube/Nexus path is **implementation prepared; runtime
+verification pending** a real Docker engine (see `docs/validation/v2-cicd.md`).
 
 ## PR path
 
 ```mermaid
 flowchart TD
     PR[Pull request] --> BT[build-test: mvnw verify once]
-    BT --> QG[quality-gate: SonarQube Cloud, uses coverage from build-test]
+    BT --> QG[quality-gate: SonarQube Cloud, re-runs mvnw verify to regenerate coverage]
     BT --> IMG[image: buildx build, load only, export image.tar artifact]
     IMG --> TR[trivy: scan the exact image.tar; SARIF to code scanning; CycloneDX SBOM]
     PR --> CS[config-scan: checkov dockerfile+github_actions, shellcheck scripts/]
-    QG & TR & CS -->|all required checks green| MERGE[Merge blocked until all pass]
+    QG & TR & CS -->|all required checks green| MERGE[Merge blocked until all pass, if branch protection requires these checks]
 ```
 
 ## Main path
@@ -39,6 +41,9 @@ flowchart TD
 
 ## Gates
 
+Merge blocking applies only where branch protection requires the named check
+(`docs/branch-protection.md`); that setting is not confirmed applied on this repo.
+
 | Gate | Enforced by | Blocks |
 |---|---|---|
 | Tests pass | `build-test` job (`mvnw verify`) | PR merge (required check) |
@@ -58,10 +63,18 @@ to main, `publish` loads that identical `image.tar` and pushes it to GHCR as
 it pulls `sha-<short>` and retags it to the release's semver tag by digest.
 See `docs/adr/0005-build-once-promote-by-digest.md`.
 
-## Self-hosted parity
+## Self-hosted parity (implementation prepared; runtime verification pending)
 
-`ci/compose.yaml` + `Jenkinsfile` run the identical stage contract
-(`docs/ci-portability.md`) for environments without GitHub-hosted runner
-access: Jenkins orchestrates, a local SonarQube instance (reachable on the
-same host network) is the quality gate, and Nexus receives the versioned JAR
-instead of GHCR receiving an image push.
+`ci/compose.yaml` + `Jenkinsfile` run an **equivalent** stage contract
+(`docs/ci-portability.md`, which lists the differences) for environments
+without GitHub-hosted runner access: Jenkins orchestrates, a local SonarQube
+instance is the quality gate (Jenkins waits on a SonarQube webhook), and Nexus
+receives the versioned JAR instead of GHCR receiving an image push. Jenkins
+builds on the host Docker daemon through the mounted socket and runs Trivy,
+Checkov, ShellCheck and the SBOM step from tools baked into its image.
+
+Base images here are pinned by version tag, not digest: the app stack under
+`docker/` is digest-pinned, but Jenkins, SonarQube, Nexus and the tool images
+copied into the Jenkins image (Docker CLI, Trivy) are not. GitHub Actions and
+release promotion are the verified path; nothing in this self-hosted section
+should be read as verified until Part B runs.

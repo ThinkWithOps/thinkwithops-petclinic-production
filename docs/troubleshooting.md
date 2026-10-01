@@ -139,3 +139,31 @@ Only failure modes that genuinely arise from this architecture. Format: symptom 
 **Diagnose:** `docker compose -f ci/compose.yaml logs sonarqube` — look for an Elasticsearch bootstrap check failure mentioning `max_map_count`.
 
 **Fix:** on the host, `sudo sysctl -w vm.max_map_count=262144` (persist via `/etc/sysctl.d/`), then `./scripts/ci-stack-up.sh` again.
+
+---
+
+### Self-hosted Jenkins: `quality gate wait` times out
+
+**Cause:** `waitForQualityGate` only returns when SonarQube calls back to Jenkins. Without the webhook it waits for the stage's 5-minute timeout.
+
+**Fix:** in SonarQube, Administration > Configuration > Webhooks, create one with URL `http://jenkins:8080/sonarqube-webhook/`. SonarQube reaches Jenkins by its Compose service name, so use `jenkins:8080`, not `localhost:8090`.
+
+---
+
+### Self-hosted Jenkins: `permission denied` on `/var/run/docker.sock`
+
+**Cause:** the Jenkins container's uid (1000) is not in the group that owns the host's Docker socket.
+
+**Diagnose:** `docker compose --env-file ci/.env -f ci/compose.yaml exec jenkins id` should list the socket's GID; compare with `stat -c '%g' /var/run/docker.sock` on the host and `DOCKER_GID` in `ci/.env`.
+
+**Fix:** re-run `./scripts/ci-stack-up.sh` (it rewrites `DOCKER_GID` and recreates the container).
+
+---
+
+### Self-hosted Jenkins: build fails on a plugin version
+
+**Cause:** a pinned version in `ci/jenkins/plugins.txt` does not exist or needs a newer Jenkins core than `2.492.2`.
+
+**Diagnose:** `docker compose --env-file ci/.env -f ci/compose.yaml build jenkins` prints the plugin and the conflicting requirement.
+
+**Fix:** pick a version from `https://get.jenkins.io/plugins/<name>/` released for the pinned core, one plugin at a time.

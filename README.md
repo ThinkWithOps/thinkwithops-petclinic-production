@@ -110,7 +110,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 
 Starting point: V1 solved environment consistency, but building, testing, scanning, versioning, and releasing were all manual. Nothing prevented a vulnerable image, a failing quality gate, or an untested change from shipping — and there was no guarantee the image that was tested was the image that got released.
 
-V2 adds: every change is built once, tested, quality-gated (SonarQube Cloud), security-scanned (Trivy for images/dependencies, Checkov for Dockerfile/workflow config), versioned (release-please, Conventional Commits), and promoted to a release tag **by digest, with no rebuild** — with PR merges blocked on any gate failing. A self-hosted Jenkins + SonarQube + Nexus stack (`ci/`) runs the identical stage contract for environments without SaaS-runner access.
+V2 adds: the container image is built once; every change is tested, quality-gated (SonarQube Cloud), security-scanned (Trivy for images/dependencies, Checkov for Dockerfile/workflow config), versioned (release-please, Conventional Commits), and promoted to a release tag **by digest, with no rebuild** — and, once branch protection is applied per [`docs/branch-protection.md`](docs/branch-protection.md) (not confirmed applied on this repo), PR merges are blocked on any gate failing. A self-hosted Jenkins + SonarQube + Nexus stack (`ci/`) runs an equivalent stage contract (differences listed in [`docs/ci-portability.md`](docs/ci-portability.md)) for environments without SaaS-runner access. Implementation prepared; runtime verification pending.
 
 ## V2 Architecture
 
@@ -150,7 +150,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 | Trivy | Image + dependency vulnerability scan, CycloneDX SBOM |
 | Checkov | Dockerfile + GitHub Actions config scan |
 | release-please | Conventional-Commits-driven semantic versioning, changelog, GitHub Releases |
-| Jenkins + Nexus (self-hosted, `ci/`) | Same stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs |
+| Jenkins + Nexus (self-hosted, `ci/`) | Equivalent stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs |
 
 ---
 
@@ -196,7 +196,7 @@ Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedde
 
 V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
 
-V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; only the self-hosted Jenkins/Nexus path is still pending.
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; the self-hosted Jenkins/Nexus path is **implementation prepared; runtime verification pending** (needs a real Docker engine with several GB of RAM).
 
 ---
 
@@ -207,7 +207,7 @@ V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, di
 | Multi-stage Dockerfile (Maven build → Temurin JRE runtime) | Separating build toolchain from runtime image; layer caching with BuildKit cache mounts |
 | Spring Boot layered jar extraction (`--layers --destination`) | Splitting dependency/loader/application layers so unchanged deps don't bust the Docker cache |
 | Fixed non-root UID/GID + read-only root filesystem + dropped capabilities | Container hardening beyond "it runs," matching what a real security review checks |
-| Digest-pinned base images everywhere | Reproducible builds — a tag can move underneath you, a digest can't |
+| Digest-pinned base images in the app stack (`docker/`) | Reproducible builds — a tag can move underneath you, a digest can't. The self-hosted CI stack (`ci/`) pins Jenkins, SonarQube, Nexus and tool images by version tag only |
 | Externalizing config via env vars into an *existing* Spring profile, without touching app code | Reading upstream source (`application-postgres.properties`) to find the real contract instead of guessing variable names |
 | `depends_on: condition: service_healthy` chained three deep | Health-gated startup ordering — why "the app started" isn't the same as "the app is ready" |
 | Nginx as the only ingress, `/actuator/**` denied at the proxy | Reducing attack surface at the network edge, not just in app config |
@@ -265,7 +265,7 @@ ci/
 ├── settings.xml.template       # Maven->Nexus settings; filled from a Jenkins credential at deploy time
 └── .env.example
 
-Jenkinsfile                    # same stage contract as ci.yml, for self-hosted runners
+Jenkinsfile                    # equivalent stage contract to ci.yml, for self-hosted runners
 release-please-config.json / .release-please-manifest.json
 .trivyignore / .checkov.yaml   # sonar.* config lives in pom.xml properties
 ```

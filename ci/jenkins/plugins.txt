@@ -1,15 +1,22 @@
-# Jenkins plugins, pinned. Installed at image build time by the official
-# jenkins/jenkins image's install-plugins mechanism (referenced by
-# ci/compose.yaml). Update versions deliberately, one PR at a time.
-configuration-as-code:1825.v40b_dc65f5807
+# Jenkins plugins, pinned. Installed at image build time by jenkins-plugin-cli
+# (see ci/jenkins/Dockerfile). Update versions deliberately, one PR at a time.
+#
+# Every version below was checked to exist on get.jenkins.io and to be from the
+# Jan-Apr 2025 window matching Jenkins core 2.492.2 (job-dsl 1.91 requires core
+# >= 2.479.3). The Dockerfile runs jenkins-plugin-cli with --latest=false so
+# transitive dependencies resolve to the versions the pinned plugins ask for, not
+# the newest ones. A remaining core-version conflict surfaces in
+# `docker compose build jenkins` on the playground, not silently at runtime.
+configuration-as-code:1932.v75cb_b_f1b_698d
+job-dsl:1.91
 workflow-aggregator:600.vb_57cdd26fdd7
 git:5.7.0
 pipeline-utility-steps:2.19.0
-credentials-binding:687.v620b_15b_c451a_
-docker-workflow:597.v7ea_c5346c81c
-sonar:2.19
+credentials-binding:687.v619cb_15e923f
+docker-workflow:599.v76126c79a_a_2d
+sonar:2.18
 nexus-artifact-uploader:2.9
 htmlpublisher:1.35
-junit:1.75
+junit:1317.v5b_35d792b_06a_
 timestamper:1.28
 ws-cleanup:0.46

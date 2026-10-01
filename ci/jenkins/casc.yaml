@@ -1,8 +1,8 @@
 # Jenkins Configuration as Code. Credentials themselves (Nexus/Sonar tokens)
 # are NOT here — they're created via the Jenkins UI/CLI on first run and
 # stored as Jenkins credentials, per scripts/ci-stack-up.sh's printed
-# instructions. This file only wires up the pipeline job and the credential
-# IDs the Jenkinsfile expects to already exist.
+# instructions. This file wires up the admin user, the SonarQube server entry
+# and the pipeline job (the `jobs:` element needs the job-dsl plugin).
 jenkins:
   systemMessage: "ThinkWithOps PetClinic — self-hosted CI stack (Jenkins + SonarQube + Nexus)"
   numExecutors: 2
@@ -20,6 +20,17 @@ jenkins:
 unclassified:
   location:
     url: http://localhost:8090/
+  # Name must match withSonarQubeEnv('local-sonarqube') in the Jenkinsfile. The
+  # token is NOT here: create it in SonarQube after it starts and store it as the
+  # Jenkins "Secret text" credential SONAR_TOKEN_LOCAL (see scripts/ci-stack-up.sh).
+  # The key is lower-case `sonarglobalconfiguration` — that is the descriptor's
+  # JCasC name in the sonar plugin's own test resources.
+  sonarglobalconfiguration:
+    buildWrapperEnabled: true
+    installations:
+      - name: "local-sonarqube"
+        serverUrl: "http://sonarqube:9000"
+        credentialsId: "SONAR_TOKEN_LOCAL"
 
 jobs:
   - script: >

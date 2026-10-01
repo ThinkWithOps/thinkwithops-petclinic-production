@@ -2,8 +2,9 @@ name: ${COMPOSE_PROJECT_NAME:-petclinic-ci}
 
 # Self-hosted CI stack: Jenkins + local SonarQube (+ its Postgres) + Nexus.
 # This is the "environments that can't use SaaS runners" path from
-# docs/adr/0007-jenkins-and-nexus-responsibilities.md — it runs the SAME
-# stage contract as .github/workflows/ci.yml, not a different pipeline.
+# docs/adr/0007-jenkins-and-nexus-responsibilities.md — it runs an EQUIVALENT
+# stage contract to .github/workflows/ci.yml (differences: docs/ci-portability.md).
+# Implementation prepared; runtime verification pending KodeKloud Part B.
 #
 # Host requirements (SonarQube):
 #   - vm.max_map_count >= 262144 on the Docker host (SonarQube's embedded
@@ -26,9 +27,31 @@ services:
       context: ./jenkins
       dockerfile: Dockerfile
     user: "1000:1000"
+    # The docker socket is owned by the host's docker group; uid 1000 inside the
+    # container needs that GID as a supplemental group to use it. DOCKER_GID is
+    # written to ci/.env by scripts/ci-stack-up.sh (stat -c '%g' /var/run/docker.sock).
+    group_add:
+      - "${DOCKER_GID:?Run scripts/ci-stack-up.sh first}"
+    # Compose substitutes ${VAR} in this file from ci/.env, but does NOT pass ci/.env
+    # into the container on its own — casc.yaml reads these two, so list them.
     environment:
       JAVA_OPTS: -Djenkins.install.runSetupWizard=false
-      CASC_JENKINS_CONFIG: /var/jenkins_home/casc.yaml
+      CASC_JENKINS_CONFIG: /usr/share/jenkins/casc/casc.yaml
+      JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-admin}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?Run scripts/ci-stack-up.sh first}
+      # Testcontainers (MySqlIntegrationTests) connects to containers it creates here.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      # PostgresIntegrationTests enables Spring Boot's Docker Compose support
+      # (spring.docker.compose.skip.in-tests=false), which runs `docker compose up
+      # postgres` from docker-compose.yml on the host daemon. With a unix socket,
+      # Spring Boot would resolve the published port's host as "localhost" — this
+      # container — so name the host explicitly. No test is skipped or changed.
+      SPRING_DOCKER_COMPOSE_HOST: host.docker.internal
+    # `mvnw verify` runs INSIDE this container but starts its test databases on the
+    # HOST daemon (mounted socket), so their published ports are on the host, not on
+    # this container's localhost. host.docker.internal -> the host gateway on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - jenkins-home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
@@ -36,7 +59,8 @@ services:
       - "${JENKINS_PORT:-8090}:8080"
       - "${JENKINS_AGENT_PORT:-50000}:50000"
     networks: [ci]
-    mem_limit: ${JENKINS_MEMORY_LIMIT:-2g}
+    # Maven + Testcontainers + Trivy + Checkov all run inside this container.
+    mem_limit: ${JENKINS_MEMORY_LIMIT:-3g}
     restart: unless-stopped
     logging: *logging
 
@@ -60,7 +84,8 @@ services:
     logging: *logging
 
   sonarqube:
-    # TODO: pin by digest once pulled on the target host — see jenkins comment above.
+    # Pinned by tag, NOT digest (unlike docker/compose.yaml); a digest can only be
+    # resolved on a host that has pulled the image. Tag verified to exist on Docker Hub.
     image: sonarqube:25.4.0.105899-community
     depends_on:
       sonarqube-db:
@@ -82,7 +107,9 @@ services:
         soft: 65536
         hard: 65536
     healthcheck:
-      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:9000/api/system/status || exit 1']
+      # The sonarqube image installs curl (and bash) but not wget. Require status UP:
+      # the endpoint answers 200 with STARTING/DB_MIGRATION_RUNNING long before ready.
+      test: [CMD-SHELL, 'curl --fail --silent http://127.0.0.1:9000/api/system/status | grep -q "\"status\":\"UP\""']
       interval: 10s
       timeout: 5s
       retries: 30
@@ -92,7 +119,7 @@ services:
     logging: *logging
 
   nexus:
-    # TODO: pin by digest once pulled on the target host — see jenkins comment above.
+    # Pinned by tag, NOT digest — see the sonarqube comment above.
     image: sonatype/nexus3:3.79.1
     volumes:
       - nexus-data:/nexus-data
@@ -100,7 +127,9 @@ services:
       - "${NEXUS_PORT:-8081}:8081"
     networks: [ci]
     healthcheck:
-      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1:8081/service/rest/v1/status || exit 1']
+      # The nexus3 image is UBI-minimal: curl present (used by its own Dockerfile), no wget.
+      # /service/rest/v1/status returns 503 until Nexus is ready to serve.
+      test: [CMD-SHELL, 'curl --fail --silent --output /dev/null http://127.0.0.1:8081/service/rest/v1/status || exit 1']
       interval: 10s
       timeout: 5s
       retries: 30
