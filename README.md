@@ -196,7 +196,7 @@ Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedde
 
 V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
 
-V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and the Release-after-CI race is fixed; release-digest-promotion (no release has been created since the fix) and the Jenkins/Nexus path are still pending.
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; only the self-hosted Jenkins/Nexus path is still pending.
 
 ---
 
