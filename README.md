@@ -9,6 +9,7 @@
 ![Java](https://img.shields.io/badge/Java-17-437291?style=flat&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.0-6DB33F?style=flat&logo=springboot&logoColor=white)
 ![License](https://img.shields.io/badge/App_License-Apache_2.0-green?style=flat)
+[![Release](https://img.shields.io/github/v/release/ThinkWithOps/thinkwithops-petclinic-production?filter=petclinic-v*&label=release)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases)
 [![CI](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml/badge.svg)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ThinkWithOps_thinkwithops-petclinic-production&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=ThinkWithOps_thinkwithops-petclinic-production)
 
@@ -40,7 +41,7 @@
 
 This repo takes the upstream [Spring PetClinic](https://github.com/spring-projects/spring-petclinic) sample application — a Java 17 / Spring Boot 4.1.0 monolith — and builds a real production operational layer around it: hardened container image, PostgreSQL, Nginx reverse proxy, health-gated startup, externalized config, CI, and (in later milestones) cloud IaC and Kubernetes.
 
-`src/main` and `src/test` are never modified. Everything under `docker/`, `scripts/`, `docs/`, and the workflow files is new, purpose-built DevOps work added on top of the copied application.
+`src/main` and `src/test` are never modified. Everything under `docker/`, `scripts/`, `docs/`, `ci/`, the `Jenkinsfile`, and the workflow files is new, purpose-built DevOps work added on top of the copied application.
 
 One repository, one continuous journey. Each milestone is an annotated Git tag + GitHub Release, and every previous milestone keeps working.
 
@@ -51,7 +52,7 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 | Part | Tag | Video | Focus |
 |---|---|---|---|
 | V1 | [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | _coming soon_ | Hardened Docker image, PostgreSQL, Nginx reverse proxy, health-gated startup, first fully verified deploy |
-| V2 | `v2-cicd` | _coming soon_ | Build-once/promote-by-digest CI/CD: quality gate, vulnerability scanning, config scanning, semantic release, self-hosted Jenkins parity |
+| V2 | [`v2-cicd`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/tree/v2-cicd) | _coming soon_ | Build-once/promote-by-digest CI/CD: quality gate, vulnerability scanning, config scanning, semantic release, self-hosted Jenkins parity |
 
 ---
 
@@ -60,7 +61,7 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 | Tag | Focus |
 |---|---|
 | [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **verified** |
-| `v2-cicd` | Build-once/promote-by-digest CI/CD, quality/security gates, semantic release — **current** |
+| [`v2-cicd`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/tree/v2-cicd) | Build-once/promote-by-digest CI/CD, quality/security gates, semantic release — **current** (GitHub Actions path verified; self-hosted Jenkins/Nexus path prepared, runtime verification pending) |
 | `v3-aws-iac` | Terraform-provisioned AWS infrastructure |
 | `v4-kubernetes` | Kubernetes deployment |
 
@@ -70,7 +71,7 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 
 The application source (`src/*`, `pom.xml` build logic, Gradle files) is from [spring-projects/spring-petclinic](https://github.com/spring-projects/spring-petclinic), licensed under the [Apache License 2.0](LICENSE.txt). No application code was modified to build this DevOps layer.
 
-Only the operational layer described in this README — `docker/`, `scripts/`, `docs/`, `.github/workflows/` — is original work added on top.
+Only the operational layer described in this README — `docker/`, `scripts/`, `docs/`, `ci/`, `Jenkinsfile`, `.github/workflows/` — is original work added on top.
 
 ---
 
@@ -130,6 +131,19 @@ flowchart TD
 
 **Build-once, promote-by-digest:** the image built and Trivy-scanned in the `image`/`trivy` jobs is the exact `image.tar` the `publish` job loads and pushes — never rebuilt. `release.yml` never runs `docker build`; it retags that same pushed digest to the release's semver tag and proves the digests match in the job log. Full write-up: [`docs/architecture/v2-cicd.md`](docs/architecture/v2-cicd.md).
 
+### V2 status
+
+| Area | Status |
+|---|---|
+| CI on `main` (`build-test`, `quality-gate`, `image`, `trivy`, `config-scan`, `publish`) | Verified on real GitHub Actions runs |
+| Trivy blocks fixable CRITICAL CVEs | Verified — it caught 3 real Tomcat CVEs (now time-boxed in `.trivyignore`) |
+| Release after CI, digest promotion without a rebuild | Verified on `petclinic-v1.1.0` (source and promoted digests match, shown in the job log) |
+| Self-hosted Jenkins + SonarQube + Nexus (`ci/`, `Jenkinsfile`) | Implementation prepared; **runtime verification pending** a real Docker engine |
+| A deliberately failing PR being blocked | Not tested |
+| Branch protection / required checks (`docs/branch-protection.md`) | Documented, **not applied** to this repo (direct pushes to `main` are allowed) |
+
+Details and the real first-run failures that were hit and fixed: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md).
+
 Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). One-time setup (SonarCloud, org PR permissions, GHCR): [`docs/ci-setup.md`](docs/ci-setup.md). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
 
 ---
@@ -150,7 +164,8 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 | Trivy | Image + dependency vulnerability scan, CycloneDX SBOM |
 | Checkov | Dockerfile + GitHub Actions config scan |
 | release-please | Conventional-Commits-driven semantic versioning, changelog, GitHub Releases |
-| Jenkins + Nexus (self-hosted, `ci/`) | Equivalent stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs |
+| GHCR | Registry for the scanned image (`sha-<short>`) and the release tag (`petclinic-vX.Y.Z`) |
+| Jenkins + Nexus (self-hosted, `ci/`) | Equivalent stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs. Prepared, not yet runtime-verified |
 
 ---
 
@@ -161,7 +176,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 - Linux amd64 engine (the pinned Alpine JRE image targets `linux/amd64`)
 - Port `8080` free on host — some cloud/remote shells already bind a web terminal to it; check with `sudo ss -tlnp | grep 8080` and set `HTTP_PORT=8081` in `docker/.env` if occupied
 
-No AWS/Azure/GCP account is needed for V1. V2's GitHub Actions path needs no local runtime at all (it runs entirely in CI); running the self-hosted Jenkins stack locally needs `ci/compose.yaml`'s host requirements documented below.
+No AWS/Azure/GCP account is needed for V1. V2's GitHub Actions path needs no local runtime at all (it runs entirely in CI). The self-hosted Jenkins stack needs a Linux Docker host with roughly 6 GB or more free RAM, `vm.max_map_count >= 262144`, and access to the host Docker socket — see [Run the self-hosted CI stack](#run-the-self-hosted-ci-stack-jenkins--sonarqube--nexus).
 
 ---
 
@@ -179,16 +194,31 @@ cd thinkwithops-petclinic-production
 
 ### How releases work
 
-Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`; all four are required checks (see [`docs/branch-protection.md`](docs/branch-protection.md)) before merge is allowed. On merge to `main`, the exact image that was scanned is pushed to GHCR tagged `sha-<short>`. Commits following [Conventional Commits](https://www.conventionalcommits.org/) accumulate into a release-please-managed PR; merging that PR cuts a GitHub Release tagged `petclinic-vX.Y.Z` and retags the already-scanned `sha-<short>` image to that version — no rebuild, same digest.
+Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. These are meant to be required checks (see [`docs/branch-protection.md`](docs/branch-protection.md)); that protection is documented but not applied to this repo yet. On merge to `main`, the exact image that was scanned is pushed to GHCR tagged `sha-<short>`.
+
+`release.yml` starts only after `ci.yml` finishes successfully on `main` (a `workflow_run` trigger; running both on `push` raced, because the image did not exist yet when release started). release-please reads [Conventional Commits](https://www.conventionalcommits.org/) and keeps a release PR up to date; merging that PR cuts a GitHub Release tagged `petclinic-vX.Y.Z` and retags the already-scanned `sha-<short>` image to that version — no rebuild, same digest, with source and promoted digests printed in the job log.
+
+- Releasable commits (mainly `feat:`, `fix:` and breaking changes) trigger a release PR; `docs:`, `chore:` and `ci:` do not, so squash-merge titles matter.
+- release-please needs a `RELEASE_PLEASE_TOKEN` secret (a PAT); a PR opened with the default `GITHUB_TOKEN` never triggers CI. Setup: [`docs/ci-setup.md`](docs/ci-setup.md).
+- Maven `SNAPSHOT` bump PRs are turned off (`skip-snapshot` in `release-please-config.json`), so there is one release PR per release.
+- Current release: [`petclinic-v1.1.0`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/petclinic-v1.1.0). Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
 ### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
 
+> **Status:** implementation prepared; runtime verification pending. The GitHub Actions path above is the verified one.
+
 ```bash
-./scripts/ci-stack-up.sh          # brings up ci/compose.yaml, prints first-run manual steps
-./scripts/ci-stack-up.sh --down   # stop the stack
+./scripts/ci-stack-up.sh          # creates ci/.env, builds Jenkins, starts the stack, prints first-run steps
+./scripts/ci-stack-up.sh --down   # stop the stack (volumes kept)
 ```
 
-Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedded Elasticsearch (the script prints the exact `sysctl` command if needed). First run needs a few manual steps in the Jenkins/SonarQube/Nexus UIs to create tokens — the script prints them; nothing is stored in git.
+What it needs and does:
+
+- Linux Docker host, about 6 GB or more free RAM, `vm.max_map_count >= 262144` for SonarQube's embedded Elasticsearch (the script prints the `sysctl` command).
+- Jenkins uses the **host** Docker daemon through `/var/run/docker.sock`; the script writes the socket's group ID to `ci/.env` as `DOCKER_GID`. Generated passwords stay in `ci/.env` (mode 0600, never committed).
+- Manual first-run steps, printed by the script: create a SonarQube token and store it as the Jenkins credential `SONAR_TOKEN_LOCAL`; add the SonarQube webhook `http://jenkins:8080/sonarqube-webhook/` (without it the quality-gate stage times out); create a Nexus deploy user and store it as `NEXUS_DEPLOY_CREDENTIALS`.
+- The seeded `petclinic-ci` job reads the `Jenkinsfile` from the `main` branch of this GitHub repo.
+- Stages: verify → SonarQube → quality gate → image build → Trivy → Checkov + ShellCheck → SBOM → publish the tested JAR to Nexus. Differences from the GitHub Actions pipeline: [`docs/ci-portability.md`](docs/ci-portability.md).
 
 ---
 
@@ -196,7 +226,7 @@ Requires `vm.max_map_count >= 262144` on the Docker host for SonarQube's embedde
 
 V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
 
-V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; the self-hosted Jenkins/Nexus path is **implementation prepared; runtime verification pending** (needs a real Docker engine with several GB of RAM).
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; the self-hosted Jenkins/Nexus path is **implementation prepared; runtime verification pending** (needs a real Docker engine with several GB of RAM). A deliberately failing PR and branch protection have not been tested or applied.
 
 ---
 
@@ -224,6 +254,9 @@ V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, di
 | Shipping a tag-only pin with an explicit TODO first, then closing it with real `gh api`-verified commit SHAs once network access existed | Honest documentation of a real gap beats a fake-looking "verified" pin at the time you can't check it — see ADR 0006 |
 | Debugging a release-please PR that opened but showed zero CI checks | GitHub's anti-recursion guard: a PR opened by the default `GITHUB_TOKEN` never triggers other workflows — needs a PAT to look like a real user |
 | Debugging Trivy failing silently mid-install with no error text | Not every `exit code 1` is the check working as designed — read past the summary to the actual tool output before assuming a real finding |
+| Debugging `release.yml` failing with `manifest unknown` on every push | Two workflows triggered by the same `push` race: the release looked for an image CI had not pushed yet. `workflow_run` plus a `conclusion == 'success'` gate makes release wait for CI |
+| A release PR that merged but never produced a tag | release-please only releases PRs labeled `autorelease: pending`; this one kept a stale `autorelease: snapshot` label from the earlier SNAPSHOT-bump PR whose branch it reused |
+| Reading the actual job log after a "successful" release run | A green run can mean "nothing to do": the promote job was *skipped*, so green did not prove promotion — only the log lines `Digest equality proven` did |
 | A real `.trivyignore` entry that did nothing because every line, including the CVE ID, was `#`-commented | The file's own header example was written as illustrative comment text — copying its shape without un-commenting the ID line silently no-ops the suppression |
 
 ---
@@ -261,12 +294,13 @@ docs/
 
 ci/
 ├── compose.yaml               # Jenkins + SonarQube (+Postgres) + Nexus
-├── jenkins/                   # Dockerfile (plugins baked in), plugins.txt, casc.yaml
+├── jenkins/                   # Dockerfile (plugins + Docker CLI/Trivy/Checkov/ShellCheck baked in), plugins.txt, casc.yaml
 ├── settings.xml.template       # Maven->Nexus settings; filled from a Jenkins credential at deploy time
 └── .env.example
 
 Jenkinsfile                    # equivalent stage contract to ci.yml, for self-hosted runners
 release-please-config.json / .release-please-manifest.json
+CHANGELOG.md                   # maintained by release-please
 .trivyignore / .checkov.yaml   # sonar.* config lives in pom.xml properties
 ```
 
@@ -295,10 +329,13 @@ Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubl
 | `trivy image --severity CRITICAL --ignore-unfixed <image>` | Reproduce the `trivy` CI job locally |
 | `checkov --config-file .checkov.yaml` | Reproduce the `config-scan` CI job locally |
 | `./scripts/ci-stack-up.sh` / `--down` | Bring up / tear down the self-hosted Jenkins + SonarQube + Nexus stack |
+| `docker compose --env-file ci/.env -f ci/compose.yaml ps` | Health of the self-hosted CI stack's containers |
+| `gh run list --workflow Release -R ThinkWithOps/thinkwithops-petclinic-production` | Recent release runs (a `skipped` run means CI did not succeed, not a failure) |
+| `gh release list -R ThinkWithOps/thinkwithops-petclinic-production` | Published releases and their `petclinic-vX.Y.Z` tags |
 | `docker buildx imagetools inspect ghcr.io/<repo>:<tag>` | Check a GHCR image's manifest digest (used to verify digest-promotion) |
 
 ---
 
 ## License
 
-The PetClinic application is released under the [Apache License 2.0](LICENSE.txt), per upstream [spring-projects/spring-petclinic](https://github.com/spring-projects/spring-petclinic). The DevOps layer in this repository (`docker/`, `scripts/`, `docs/`, workflow changes) is original work by this repository's author, provided as-is for portfolio/educational use.
+The PetClinic application is released under the [Apache License 2.0](LICENSE.txt), per upstream [spring-projects/spring-petclinic](https://github.com/spring-projects/spring-petclinic). The DevOps layer in this repository (`docker/`, `scripts/`, `docs/`, `ci/`, `Jenkinsfile`, workflow changes) is original work by this repository's author, provided as-is for portfolio/educational use.
