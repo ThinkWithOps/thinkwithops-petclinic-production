@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.1.0...petclinic-v1.1.1) (2026-10-01)
+
+
+### Documentation
+
+* bring README up to date with verified V2 state ([386b15e](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/386b15ebeb9b3073e682ff324fa7ca053380a7af))
+* mark release digest promotion verified (petclinic-v1.1.0) ([#8](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/issues/8)) ([2d1ad73](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/2d1ad7344ca3c30c791a7dc6b8a819255073a93c))
+
 ## [1.1.0](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.0.2...petclinic-v1.1.0) (2026-10-01)
 
 
