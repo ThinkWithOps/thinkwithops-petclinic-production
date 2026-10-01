@@ -4,8 +4,9 @@ Status: **PARTIALLY VERIFIED** (updated 2026-10-01). `ci.yml` has run for
 real on push to `main` (run `36608891090`) with `build-test`, `quality-gate`,
 `image`, `trivy`, `config-scan`, and `publish` all green — reached only
 after fixing several real, first-run-only bugs along the way (see the
-commit history and the "Hit for real" notes below). The release-please and
-Jenkins/Nexus paths are still not runtime-verified — see checks 4 and 5.
+commit history and the "Hit for real" notes below). Release digest promotion is now
+verified (check 4); the Jenkins/Nexus path is still not runtime-verified — see
+check 5.
 
 ## Required checks and how to produce them
 
@@ -14,7 +15,7 @@ Jenkins/Nexus paths are still not runtime-verified — see checks 4 and 5.
 | 1 | PR with a failing test is blocked | Push a commit that breaks a test, open a PR | Not yet deliberately tested; `build-test` itself is confirmed working (green on real runs) |
 | 2 | A CRITICAL vulnerability blocks the pipeline | (Happened organically, not via a deliberately added test dependency) | **Verified for real**: the first real `trivy` run found 3 genuine fixable-CRITICAL Tomcat CVEs and failed the job exactly as designed — see the "Hit for real" note below |
 | 3 | A push to `main` goes fully green | Push to `main` | **Verified**: run `36608891090`, all 6 jobs green. PR-merge-specific gating (branch protection required checks) not yet separately confirmed — depends on `docs/branch-protection.md` being applied |
-| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Race condition fixed and confirmed** (every Release run since succeeds in ~15-30s, no `manifest unknown`). Digest promotion itself still **PENDING**: release 1.0.2 was never created (stale `autorelease: snapshot` label, see below), so `promote-by-digest` has never run on a real release |
+| 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Verified for real** (2026-10-01): release `petclinic-v1.1.0` (PR #7), Release run `36888363516`; `promote-by-digest` logged source and promoted digest both `sha256:bd013a5d24c58e1435a0c1ec626d0fdfae635de916fc9346f9bc066719f95f45` and `Digest equality proven: same image, no rebuild.` Releases 1.0.0 and 1.0.2 stayed incomplete (see notes below) |
 | 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | Not yet run — needs a real Docker engine |
 
 **Note on `ci/jenkins/Dockerfile`'s HEALTHCHECK**: uses `wget`, unverified
@@ -95,8 +96,9 @@ wouldn't block the stack from running, but should be fixed if hit).
   `workflow_run: workflows: [CI], types: [completed], branches: [main]`,
   gated on `github.event.workflow_run.conclusion == 'success'` — this makes
   `release.yml` wait for `ci.yml` to fully finish, and only proceed if it
-  passed, before starting at all. PENDING confirmation on the next real
-  release cycle.
+  passed, before starting at all. **Confirmed**: every Release run since
+  succeeds in ~15-40s, and a cancelled duplicate CI run correctly produces a
+  skipped Release run instead of a failure.
 - **Hit for real: release 1.0.2 merged but was never tagged or promoted.**
   PR #4 (`chore(main): release petclinic 1.0.2`) carries the label
   `autorelease: snapshot`, not `autorelease: pending`. It began as the
@@ -108,10 +110,11 @@ wouldn't block the stack from running, but should be fixed if hit).
   `promote-by-digest` was skipped. No `petclinic-v1.0.2` tag or GitHub
   Release exists. The next release PR (#5, 1.1.0) was labeled `pending`
   correctly, which confirms this was a one-off from the config change
-  mid-cycle, not a systemic bug. **Next step**: merge a `feat:`/`fix:`
-  commit, merge the resulting release PR, and confirm the Release run's
-  `promote-by-digest` job runs and proves digest equality. Note
-  `skip-snapshot` is already set, so no more SNAPSHOT PRs should appear.
+  mid-cycle, not a systemic bug. **Confirmed**: merging a `fix:` PR (#6)
+  opened release PR #7 labeled `pending`, and merging it created
+  `petclinic-v1.1.0` and ran `promote-by-digest` successfully (check 4). No
+  SNAPSHOT PR appeared (`skip-snapshot` works). `petclinic-v1.0.2` was never
+  created and will not be backfilled.
 - **Cosmetic**: release-please logs `Unable to parse release name:
   v1-containerized — Containerized PetClinic` because that draft GitHub
   Release has a non-semver name. Harmless.
