@@ -18,5 +18,5 @@ if [[ ${1:-} == --purge-data ]]; then
     compose down --volumes
 else
     compose down
-    printf 'Database volume preserved; redeploy reuses it. Playground expiry may still remove it.\n'
+    printf 'Database volume preserved; redeploy reuses it. Destroying the host will still remove it.\n'
 fi

@@ -10,7 +10,7 @@ Only failure modes that genuinely arise from this architecture. Format: symptom 
 
 **Diagnose:** `ls docker/.env`
 
-**Fix:** run `./scripts/setup-playground.sh` (also called automatically by `deploy.sh`). It copies `docker/.env.example` → `docker/.env`, mode 0600, and replaces the two `REPLACE_WITH_RANDOM_*_PASSWORD` placeholders with real random secrets.
+**Fix:** run `./scripts/setup-env.sh` (also called automatically by `deploy.sh`). It copies `docker/.env.example` → `docker/.env`, mode 0600, and replaces the two `REPLACE_WITH_RANDOM_*_PASSWORD` placeholders with real random secrets.
 
 ---
 
@@ -84,21 +84,21 @@ Only failure modes that genuinely arise from this architecture. Format: symptom 
 
 ---
 
-### Playground's port viewer can't reach the app
+### Browser on another machine can't reach the app
 
-**Cause:** `BIND_ADDRESS` in `docker/.env` defaults to `127.0.0.1` (loopback-only), which is correct for a real workstation but invisible to a lab's external port viewer.
+**Cause:** `BIND_ADDRESS` in `docker/.env` defaults to `127.0.0.1` (loopback-only), which is correct for a local workstation but unreachable from a browser on another machine (remote or cloud host, forwarded port).
 
 **Diagnose:** `docker compose config` — check the `nginx.ports` binding.
 
-**Fix:** set `BIND_ADDRESS=0.0.0.0` in `docker/.env` before running `./scripts/deploy.sh` in the playground (the scripts remind you of this).
+**Fix:** set `BIND_ADDRESS=0.0.0.0` in `docker/.env` before running `./scripts/deploy.sh` on the remote host (the scripts remind you of this).
 
 ---
 
-### Playground session expires mid-demo
+### Temporary cloud host expires mid-session
 
-**Cause:** cloud playground labs are ephemeral (~2–3 hours) by design — this is not a bug in this repo.
+**Cause:** short-lived cloud hosts are ephemeral by design and are destroyed on a timer — this is not a bug in this repo.
 
-**Fix:** nothing to fix; re-provision a new playground and re-run `./scripts/deploy.sh` — the whole flow is idempotent and safe to rerun against a fresh lab. Data does not survive playground destruction (only survives `compose down && up` within the same session) — this is documented, not a defect.
+**Fix:** nothing to fix; re-provision a new host and re-run `./scripts/deploy.sh` — the whole flow is idempotent and safe to rerun against a fresh host. Data does not survive host destruction (only survives `compose down && up` on the same host) — this is documented, not a defect.
 
 ---
 

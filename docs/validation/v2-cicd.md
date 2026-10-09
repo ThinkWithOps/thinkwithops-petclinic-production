@@ -16,7 +16,7 @@ check 5.
 | 2 | A CRITICAL vulnerability blocks the pipeline | (Happened organically, not via a deliberately added test dependency) | **Verified for real**: the first real `trivy` run found 3 genuine fixable-CRITICAL Tomcat CVEs and failed the job exactly as designed — see the "Hit for real" note below |
 | 3 | A push to `main` goes fully green | Push to `main` | **Verified**: run `36608891090`, all 6 jobs green. PR-merge-specific gating (branch protection required checks) not yet separately confirmed — depends on `docs/branch-protection.md` being applied |
 | 4 | Release promotes the same digest | Merge a `feat:`/`fix:` commit, let release-please open its PR, merge it | **Verified for real** (2026-10-01): release `petclinic-v1.1.0` (PR #7), Release run `36888363516`; `promote-by-digest` logged source and promoted digest both `sha256:bd013a5d24c58e1435a0c1ec626d0fdfae635de916fc9346f9bc066719f95f45` and `Digest equality proven: same image, no rebuild.` Releases 1.0.0 and 1.0.2 stayed incomplete (see notes below) |
-| 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | **Implementation prepared; runtime verification pending KodeKloud Part B.** Not run yet — needs a real Docker engine. See the Jenkins notes below |
+| 5 | Jenkins pipeline runs green locally and a JAR appears in Nexus | `./scripts/ci-stack-up.sh`, complete the printed first-run steps, trigger the `petclinic-ci` Jenkins job | **Implementation prepared; runtime verification pending a real Docker engine run.** Not run yet — needs a real Docker engine. See the Jenkins notes below |
 
 ### Jenkins/Nexus path: what is and isn't known
 
@@ -48,7 +48,7 @@ Testcontainers, the Sonar webhook and the Nexus deployment are all unrun):
   SonarQube image (per its upstream Dockerfile) ships `curl` and no `wget`, and
   the Nexus image is UBI-minimal (no `wget`). All three now use `curl`. The
   tool presence in the *pinned* images was inferred from upstream Dockerfiles,
-  not from running them — confirm on the playground.
+  not from running them — confirm on a real Docker host.
 - **Nexus publish**: the stage previously ran `mvn deploy -DskipTests`, which
   re-packaged a JAR that was never tested. It now deploys the verify-stage JAR
   after a checksum check.
@@ -67,8 +67,7 @@ Testcontainers, the Sonar webhook and the Nexus deployment are all unrun):
   service; no test is skipped or changed. Unverified until the `verify` stage
   runs. Port 5432 must also be free on the host.
 
-Exact playground commands live in the (uncommitted) personal run notes; the
-required SonarQube webhook is printed by `scripts/ci-stack-up.sh`.
+The required SonarQube webhook is printed by `scripts/ci-stack-up.sh`.
 
 ## Realistic problems this milestone documents (from the spec, verified against this repo's actual config)
 

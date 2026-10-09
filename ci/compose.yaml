@@ -4,7 +4,7 @@ name: ${COMPOSE_PROJECT_NAME:-petclinic-ci}
 # This is the "environments that can't use SaaS runners" path from
 # docs/adr/0007-jenkins-and-nexus-responsibilities.md — it runs an EQUIVALENT
 # stage contract to .github/workflows/ci.yml (differences: docs/ci-portability.md).
-# Implementation prepared; runtime verification pending KodeKloud Part B.
+# Implementation prepared; runtime verification pending a real Docker engine run.
 #
 # Host requirements (SonarQube):
 #   - vm.max_map_count >= 262144 on the Docker host (SonarQube's embedded

@@ -274,7 +274,7 @@ docker/
 scripts/
 ├── deploy.sh / verify.sh / cleanup.sh   # top-level: setup+build+run / validate / teardown
 ├── build.sh / run-local.sh / validate-local.sh   # building blocks the above wrap
-├── setup-playground.sh       # preflight checks + private .env generation
+├── setup-env.sh       # preflight checks + private .env generation
 ├── static-check.sh           # shellcheck, bash -n, Compose config, no daemon required
 ├── check-runtime.py / check-static.py   # Python assertions used by the scripts above
 └── lib/common.sh             # shared helpers (die, need, compose, config_value, ...)

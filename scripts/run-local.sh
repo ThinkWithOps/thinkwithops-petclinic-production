@@ -15,4 +15,4 @@ image=$(config_value services app image)
 docker image inspect "$image" >/dev/null 2>&1 || die 'App image missing; run ./scripts/build.sh or ./scripts/deploy.sh.'
 compose up --detach --no-build --wait --wait-timeout "$(wait_timeout)"
 printf 'PetClinic: %s\nNginx health: %s/nginx-health\n' "$(local_url)" "$(local_url)"
-printf 'On a cloud playground, open the published HTTP_PORT in its port viewer. Verify: ./scripts/verify.sh\n'
+printf 'On a remote or cloud host, set BIND_ADDRESS=0.0.0.0 and open the published HTTP_PORT from your browser. Verify: ./scripts/verify.sh\n'

@@ -6,7 +6,7 @@
 # >= 2.479.3). The Dockerfile runs jenkins-plugin-cli with --latest=false so
 # transitive dependencies resolve to the versions the pinned plugins ask for, not
 # the newest ones. A remaining core-version conflict surfaces in
-# `docker compose build jenkins` on the playground, not silently at runtime.
+# `docker compose build jenkins` on a Docker host, not silently at runtime.
 configuration-as-code:1932.v75cb_b_f1b_698d
 job-dsl:1.91
 workflow-aggregator:600.vb_57cdd26fdd7

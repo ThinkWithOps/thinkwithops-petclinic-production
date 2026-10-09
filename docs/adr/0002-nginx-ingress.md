@@ -14,7 +14,7 @@ The internal Alpine entrypoint uses POSIX `sh` with `set -eu`, because this imag
 
 ## Trade-offs
 
-An extra container consumes resources. HTTP inside the lab remains cleartext. Default scheme is `http`; when a trusted playground viewer terminates HTTPS, set `PUBLIC_SCHEME=https`. Do not forward client-supplied `X-Forwarded-Proto` blindly. This option does not enable TLS at Nginx. Some viewer authentication/iframe behavior can only be tested in a real lab.
+An extra container consumes resources. HTTP inside the host remains cleartext. Default scheme is `http`; when a trusted front proxy terminates HTTPS, set `PUBLIC_SCHEME=https`. Do not forward client-supplied `X-Forwarded-Proto` blindly. This option does not enable TLS at Nginx. Some front-proxy authentication/iframe behavior can only be tested against a real remote host.
 
 ## Enterprise scale
 

@@ -14,7 +14,7 @@ preflight() {
     need docker
     need python3
     docker compose version >/dev/null 2>&1 || die 'Docker Compose v2+ plugin required.'
-    docker info >/dev/null 2>&1 || die 'Docker daemon unavailable. Run this script in the Docker Playground.'
+    docker info >/dev/null 2>&1 || die 'Docker daemon unavailable. Start Docker and re-run.'
     [[ $(docker info --format '{{.OSType}}/{{.Architecture}}') =~ ^linux/(x86_64|amd64)$ ]] ||
         die 'Pinned Alpine Java runtime requires a Linux amd64 Docker engine.'
 }
@@ -40,7 +40,7 @@ PY
 }
 
 require_env() {
-    [[ -f $ENV_FILE ]] || die 'Missing .env; run ./scripts/setup-playground.sh.'
+    [[ -f $ENV_FILE ]] || die 'Missing .env; run ./scripts/setup-env.sh.'
     compose config --quiet
     compose config --format json | python3 -c '
 import json, re, sys
@@ -54,7 +54,7 @@ if p["APP_DB_USER"] == "postgres":
 for key in ("APP_DB_PASSWORD", "POSTGRES_PASSWORD"):
     value = str(p[key])
     if len(value) < 24 or value.startswith("REPLACE_"):
-        sys.exit(f"Set a strong {key}; run setup-playground.sh for placeholder replacement.")
+        sys.exit(f"Set a strong {key}; run setup-env.sh for placeholder replacement.")
 if p["APP_DB_PASSWORD"] == p["POSTGRES_PASSWORD"]:
     sys.exit("Use separate application and administrator passwords.")
 '

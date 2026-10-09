@@ -6,7 +6,7 @@ case ${1:-} in
     -h|--help)
         echo 'Usage: validate-local.sh [--smoke-only]'
         echo 'Default verifies runtime, creates a temporary owner through HTTP, recreates this Compose stack (brief outage), proves persistence, removes test owner.'
-        echo '--smoke-only skips recreation and is NOT complete V1 validation. Optional PUBLIC_URL adds a playground viewer check.'
+        echo '--smoke-only skips recreation and is NOT complete V1 validation. Optional PUBLIC_URL adds a check against an externally reachable URL.'
         exit 0 ;;
     ''|--smoke-only) ;;
     *) die 'Unknown argument. Use --help.' ;;
@@ -80,7 +80,7 @@ cleanup_probe() {
 trap cleanup_probe EXIT
 status=$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
     --data-urlencode firstName=V1Probe --data-urlencode "lastName=$marker" \
-    --data-urlencode 'address=1 Validation Street' --data-urlencode city=Playground \
+    --data-urlencode 'address=1 Validation Street' --data-urlencode city=Testville \
     --data-urlencode telephone=5555550100 "$url/owners/new")
 [[ $status == 302 ]] || die "Create-owner POST returned $status; expected 302."
 owner_id=$(sql "SELECT id FROM owners WHERE first_name='V1Probe' AND last_name='$marker';")

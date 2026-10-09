@@ -5,7 +5,7 @@
 // and docs/adr/0007-jenkins-and-nexus-responsibilities.md for why this exists
 // alongside GitHub Actions rather than instead of it.
 //
-// Status: implementation prepared; runtime verification pending KodeKloud Part B.
+// Status: implementation prepared; runtime verification pending a real Docker engine run.
 pipeline {
     agent any
 

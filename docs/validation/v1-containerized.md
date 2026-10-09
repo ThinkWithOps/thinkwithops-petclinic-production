@@ -1,12 +1,12 @@
 # V1 validation: containerized PetClinic
 
-Status: **verified 2026-09-27** on a real Docker engine (Ubuntu 24.04 amd64 lab host). All checks below passed.
+Status: **verified 2026-09-27** on a real Docker engine (Ubuntu 24.04 amd64 Docker host). All checks below passed.
 
 Run order:
 
 ```bash
 ./scripts/static-check.sh     # no Docker daemon required
-./scripts/deploy.sh           # setup-playground.sh + build.sh + run-local.sh
+./scripts/deploy.sh           # setup-env.sh + build.sh + run-local.sh
 ./scripts/verify.sh           # full functional + persistence checks (validate-local.sh)
 ./scripts/cleanup.sh          # tear down; --purge-data also drops the DB volume
 ```
@@ -99,7 +99,7 @@ Output: `PASS: HTTP write/read matches PostgreSQL row; app role is not superuser
 
 ## 8. Optional external viewer smoke test
 
-If `PUBLIC_URL` is set (e.g. a playground's forwarded URL), `verify.sh` also fetches it directly and checks for `PetClinic` in the body. Useful to confirm the playground's port viewer/proxy chain works end to end, separate from the internal `localhost` checks above.
+If `PUBLIC_URL` is set (e.g. a forwarded or public URL), `verify.sh` also fetches it directly and checks for `PetClinic` in the body. Useful to confirm the externally reachable proxy chain works end to end, separate from the internal `localhost` checks above.
 
 ## Definition of done for this milestone
 

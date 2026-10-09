@@ -4,7 +4,7 @@ Status: implemented and runtime-verified on a real Docker engine (see `docs/vali
 
 ```mermaid
 flowchart LR
-    C[Browser / playground port viewer] -->|HTTP_PORT; only host mapping| N
+    C[Browser / remote port forward] -->|HTTP_PORT; only host mapping| N
     subgraph frontend[frontend bridge]
         N[Nginx; UID 101; port 8080] -->|HTTP; sanitized forwarded headers| A[PetClinic; UID 10001; port 8080]
     end
@@ -35,12 +35,12 @@ Shutdown: Java is PID 1; Docker sends SIGTERM directly. Spring graceful shutdown
 
 Trust boundaries:
 
-- Browser input is untrusted. Nginx overwrites forwarding headers; the app trusts only this proxy because it has no published port. TLS termination in a playground viewer is represented by explicit `PUBLIC_SCHEME=https`, never by trusting arbitrary incoming headers.
+- Browser input is untrusted. Nginx overwrites forwarding headers; the app trusts only this proxy because it has no published port. TLS termination by a front proxy is represented by explicit `PUBLIC_SCHEME=https`, never by trusting arbitrary incoming headers.
 - Nginx and app run non-root with read-only root filesystems, bounded `/tmp`, dropped capabilities and no privilege escalation. Application binaries remain root-owned and not writable by UID 10001.
 - App exposes only actuator health internally; Nginx denies all actuator paths. No management endpoint is a public API.
 - `.env` contains separate random app/admin database passwords with mode 0600. Docker host administrators can inspect environment secrets. Production secret stores and workload identity are future work.
 - PostgreSQL uses SCRAM for network authentication. The app role can create its schema tables for upstream SQL initialization but cannot create databases/roles or act as superuser. Enterprise migrations would split schema ownership from the runtime role.
 
-This is a production-style local runtime, not a complete internet production service. It has no user authentication, managed TLS, HA, backup policy, orchestrator recovery or external secret manager. Keep playground access scoped to the lab; use synthetic data.
+This is a production-style local runtime, not a complete internet production service. It has no user authentication, managed TLS, HA, backup policy, orchestrator recovery or external secret manager. Keep remote access scoped to trusted networks; use synthetic data.
 
-Ephemeral deployment preserves the same three-component architecture. Only bind address, port and external scheme vary. Named volumes survive `compose down` within a session, not playground destruction. No AWS/Azure/GCP account is needed for V1.
+Ephemeral deployment preserves the same three-component architecture. Only bind address, port and external scheme vary. Named volumes survive `compose down` within a session, not destruction of the host. No AWS/Azure/GCP account is needed for V1.

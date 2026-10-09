@@ -8,6 +8,6 @@ case ${1:-} in
     *) die 'Unknown argument. Use --help.' ;;
 esac
 [[ $# -le 1 ]] || die 'Too many arguments.'
-"$ROOT/scripts/setup-playground.sh"
+"$ROOT/scripts/setup-env.sh"
 "$ROOT/scripts/build.sh"
 "$ROOT/scripts/run-local.sh"

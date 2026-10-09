@@ -12,9 +12,9 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-petclinic}
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run scripts/setup-playground.sh first}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run scripts/setup-env.sh first}
       APP_DB_USER: ${POSTGRES_USER:-petclinic}
-      APP_DB_PASSWORD: ${POSTGRES_PASS:?Run scripts/setup-playground.sh first}
+      APP_DB_PASSWORD: ${POSTGRES_PASS:?Run scripts/setup-env.sh first}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -39,7 +39,7 @@ services:
       SPRING_PROFILES_ACTIVE: postgres
       POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-petclinic}
       POSTGRES_USER: ${POSTGRES_USER:-petclinic}
-      POSTGRES_PASS: ${POSTGRES_PASS:?Run scripts/setup-playground.sh first}
+      POSTGRES_PASS: ${POSTGRES_PASS:?Run scripts/setup-env.sh first}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=65.0 -XX:+ExitOnOutOfMemoryError}
       MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
       MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
