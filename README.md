@@ -28,6 +28,8 @@
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Run Locally](#run-locally)
+  - [V1 — Run the app](#v1--run-the-app)
+  - [V2 — Use the pipeline](#v2--use-the-pipeline)
 - [Validation](#validation)
 - [What This Teaches](#what-this-teaches)
 - [Project Structure](#project-structure)
@@ -171,28 +173,76 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 
 ## Prerequisites
 
+**V1 (run the app)** — a local machine or any Docker host:
+
 - Docker Engine + Compose v2 plugin + Buildx (for the BuildKit cache mount)
 - `git`, `curl`, `python3`
-- Linux amd64 engine (the pinned Alpine JRE image targets `linux/amd64`)
-- Port `8080` free on host — some cloud/remote shells already bind a web terminal to it; check with `sudo ss -tlnp | grep 8080` and set `HTTP_PORT=8081` in `docker/.env` if occupied
+- A Linux amd64 Docker engine (the pinned Alpine JRE image targets `linux/amd64`; the preflight check fails on an arm64 engine, e.g. Apple Silicon)
+- One free host port for the app (default `8080`)
 
-No AWS/Azure/GCP account is needed for V1. V2's GitHub Actions path needs no local runtime at all (it runs entirely in CI). The self-hosted Jenkins stack needs a Linux Docker host with roughly 6 GB or more free RAM, `vm.max_map_count >= 262144`, and access to the host Docker socket — see [Run the self-hosted CI stack](#run-the-self-hosted-ci-stack-jenkins--sonarqube--nexus).
+**V2 (use the pipeline)** — pick one path:
+
+- **GitHub Actions:** a GitHub account and a fork of this repo. Nothing runs on your machine. A SonarCloud account and two repository secrets are needed (checklist below)
+- **Self-hosted Jenkins stack:** a Linux Docker host with roughly 6 GB or more free RAM, `vm.max_map_count >= 262144`, access to the host Docker socket, and free ports `8090` (Jenkins), `9000` (SonarQube) and `8081` (Nexus)
+
+No AWS/Azure/GCP account is needed for V1 or V2.
 
 ---
 
 ## Run Locally
 
+### V1 — Run the app
+
 ```bash
 git clone https://github.com/ThinkWithOps/thinkwithops-petclinic-production.git
 cd thinkwithops-petclinic-production
-./scripts/deploy.sh     # generates a private .env, builds the image, starts the stack
+./scripts/deploy.sh     # generates a private docker/.env, builds the image, starts the stack
 ./scripts/verify.sh     # full functional + persistence validation
 ./scripts/cleanup.sh    # tear down; add --purge-data to also drop the DB volume
 ```
 
 `deploy.sh` prints the URL once Nginx is healthy (defaults to `http://127.0.0.1:8080`).
 
-### How releases work
+**If port 8080 is already in use** (check with `sudo ss -tlnp | grep 8080`), change the port *before* deploying. `docker/.env` does not exist until setup runs, so create it first:
+
+```bash
+./scripts/setup-env.sh                                   # preflight checks + private docker/.env, starts nothing
+sed -i 's/^HTTP_PORT=.*/HTTP_PORT=8082/' docker/.env     # any free port; avoid 8081/8090/9000 if you will also run the V2 CI stack
+./scripts/deploy.sh
+```
+
+**If you run this on a remote or cloud host** and open the app from another machine, the default `BIND_ADDRESS=127.0.0.1` (loopback only) is not reachable. Set it before deploying:
+
+```bash
+./scripts/setup-env.sh
+sed -i 's/^BIND_ADDRESS=.*/BIND_ADDRESS=0.0.0.0/' docker/.env
+./scripts/deploy.sh
+```
+
+Then browse to `http://<host-address>:<HTTP_PORT>`. The stack has no user authentication or TLS (see [`docs/architecture/v1-containerized.md`](docs/architecture/v1-containerized.md)), so restrict who can reach that port and use synthetic data only.
+
+### V2 — Use the pipeline
+
+V2 is a CI/CD pipeline, not a second app to start. There are two implementations of the same stage contract; use whichever fits.
+
+| Path | Where it runs | Status |
+|---|---|---|
+| GitHub Actions (`ci.yml`, `release.yml`) | GitHub-hosted runners, on your fork | Verified on real runs |
+| Self-hosted Jenkins + SonarQube + Nexus (`ci/`) | A Linux Docker host you control | Implementation prepared; runtime verification pending |
+
+#### GitHub Actions — set up your fork
+
+Nothing to run locally. After forking, do the one-time setup in [`docs/ci-setup.md`](docs/ci-setup.md), in order:
+
+1. Create a SonarCloud project for the fork; set `sonar.projectKey` in `pom.xml` and `-Dsonar.organization` in `.github/workflows/ci.yml` to the values SonarCloud assigns (the repo ships with the original author's values).
+2. Add the repository secret `SONAR_TOKEN`.
+3. Allow GitHub Actions to create pull requests, and add the repository secret `RELEASE_PLEASE_TOKEN` (a fine-grained personal access token).
+4. Set Workflow permissions to "Read and write" so `publish` can push to GHCR.
+5. Optional but recommended: apply [`docs/branch-protection.md`](docs/branch-protection.md) so failing checks block merges.
+
+Then push a branch and open a pull request. `build-test`, `quality-gate`, `image`, `trivy` and `config-scan` run on the PR; `publish` runs after the merge to `main`. To reproduce a CI job on your own machine first, use the commands in the [Command Reference](#command-reference) (`./mvnw -B -ntp verify`, `trivy image ...`, `checkov ...`).
+
+#### How releases work
 
 Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. These are meant to be required checks (see [`docs/branch-protection.md`](docs/branch-protection.md)); that protection is documented but not applied to this repo yet. On merge to `main`, the exact image that was scanned is pushed to GHCR tagged `sha-<short>`.
 
@@ -203,7 +253,7 @@ Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. The
 - Maven `SNAPSHOT` bump PRs are turned off (`skip-snapshot` in `release-please-config.json`), so there is one release PR per release.
 - Current release: [`petclinic-v1.1.0`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/petclinic-v1.1.0). Full history: [`CHANGELOG.md`](CHANGELOG.md).
 
-### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
+#### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
 
 > **Status:** implementation prepared; runtime verification pending. The GitHub Actions path above is the verified one.
 
