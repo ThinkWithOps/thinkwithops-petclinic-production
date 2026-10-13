@@ -46,7 +46,7 @@ def main():
     pom = ET.parse(ROOT / "pom.xml")
     ns = {"m": "http://maven.apache.org/POM/4.0.0"}
     require(pom.findtext("m:properties/m:java.version", namespaces=ns) == "17", "Review Java image version")
-    require(pom.findtext("m:parent/m:version", namespaces=ns) == "4.1.0", "Review Boot extraction")
+    require(pom.findtext("m:parent/m:version", namespaces=ns) == "4.1.1", "Review Boot extraction")
     for path in (ROOT / "src/checkstyle").glob("*.xml"):
         ET.parse(path)
     for path in (ROOT / "scripts").glob("*.py"):

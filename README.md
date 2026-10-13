@@ -7,7 +7,7 @@
 ![Nginx](https://img.shields.io/badge/Nginx-Unprivileged-009639?style=flat&logo=nginx&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat&logo=postgresql&logoColor=white)
 ![Java](https://img.shields.io/badge/Java-17-437291?style=flat&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.0-6DB33F?style=flat&logo=springboot&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-6DB33F?style=flat&logo=springboot&logoColor=white)
 ![License](https://img.shields.io/badge/App_License-Apache_2.0-green?style=flat)
 [![Release](https://img.shields.io/github/v/release/ThinkWithOps/thinkwithops-petclinic-production?filter=petclinic-v*&label=release)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases)
 [![CI](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml/badge.svg)](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/actions/workflows/ci.yml)
@@ -41,7 +41,7 @@
 
 ## Project Description
 
-This repo takes the upstream [Spring PetClinic](https://github.com/spring-projects/spring-petclinic) sample application — a Java 17 / Spring Boot 4.1.0 monolith — and builds a real production operational layer around it: hardened container image, PostgreSQL, Nginx reverse proxy, health-gated startup, externalized config, CI, and (in later milestones) cloud IaC and Kubernetes.
+This repo takes the upstream [Spring PetClinic](https://github.com/spring-projects/spring-petclinic) sample application — a Java 17 / Spring Boot monolith (upstream targets 4.1.0; this repo builds on the 4.1.1 patch release, see [ADR 0010](docs/adr/0010-spring-boot-parent-bump.md)) — and builds a real production operational layer around it: hardened container image, PostgreSQL, Nginx reverse proxy, health-gated startup, externalized config, CI, and (in later milestones) cloud IaC and Kubernetes.
 
 `src/main` and `src/test` are never modified. Everything under `docker/`, `scripts/`, `docs/`, `ci/`, the `Jenkinsfile`, and the workflow files is new, purpose-built DevOps work added on top of the copied application.
 

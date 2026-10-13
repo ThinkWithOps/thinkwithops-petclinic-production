@@ -89,6 +89,15 @@ The required SonarQube webhook is printed by `scripts/ci-stack-up.sh`.
   instead (owner + 2026-10-13 review date) rather than bump to an unverified
   version — see the file for the full justification. Re-triage before that
   date with a real Maven Central / NVD lookup once one is possible.
+- **Hit for real on 2026-10-09 (no code change, database-driven):** CI on
+  `main` failed in `trivy` only, after the vulnerability database updated.
+  Two fixable CRITICAL CVEs in `spring-webmvc` 7.0.8 (`CVE-2026-47890`,
+  `CVE-2026-47884`, fixed in 7.0.9). `publish` and the Release run were
+  skipped because `trivy` failed; no image was pushed from that commit. Fix:
+  bump `spring-boot-starter-parent` 4.1.0 -> 4.1.1 (manages Spring Framework
+  7.0.9 and Tomcat 11.0.24), per
+  [ADR 0010](../adr/0010-spring-boot-parent-bump.md). Result of the CI run on
+  the fix: see the status line below once recorded.
 - **Digest mismatch**: structurally prevented by ADR 0005's design
   (`release.yml` never rebuilds), verified at runtime by check #4 above.
 - **Testcontainers without Docker**: **confirmed working** — `build-test`
