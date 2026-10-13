@@ -4,27 +4,12 @@
 # and a review/expiry date. An entry past its expiry date should be treated as
 # a build failure waiting to happen — re-run Trivy and either fix or renew it.
 #
-# Justification: flagged in embedded Apache Tomcat, pulled in transitively via
-# spring-boot-starter-webmvc off spring-boot-starter-parent 4.1.0. Could not
-# verify a patched spring-boot-starter-parent version against Maven Central
-# at the time this was triaged — the search index doesn't list any
-# org.springframework.boot:spring-boot-starter-parent release at or above
-# 4.x, only up to 3.5.3, so there's no way to confirm which (if any) parent
-# bump actually carries the fix without guessing. Accepted short-term rather
-# than bump to an unverified version; re-triage before expiry with a real
-# registry lookup.
-# Owner: @vijayb-aiops
-# Review-by: 2026-10-13
-CVE-2026-68525
 
-# Justification: same root cause/blocker as CVE-2026-68525 above (embedded
-# Tomcat via spring-boot-starter-parent 4.1.0; no verifiable patched parent
-# version found on Maven Central at triage time).
-# Owner: @vijayb-aiops
-# Review-by: 2026-10-13
-CVE-2026-65905
-
-# Justification: same root cause/blocker as CVE-2026-68525 above.
-# Owner: @vijayb-aiops
-# Review-by: 2026-10-13
-CVE-2026-65182
+# No active suppressions.
+#
+# History: CVE-2026-68525, CVE-2026-65905 and CVE-2026-65182 (embedded Apache
+# Tomcat via spring-boot-starter-parent 4.1.0) were accepted here on
+# 2026-09-29 with a review-by date of 2026-10-13 because no patched parent
+# could be verified. On 2026-10-13 the parent was bumped to 4.1.1 (managed
+# Tomcat 11.0.24, see docs/adr/0010-spring-boot-parent-bump.md) and the
+# entries were removed; the Trivy job decides whether they were still needed.
