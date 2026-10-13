@@ -87,17 +87,32 @@ The required SonarQube webhook is printed by `scripts/ci-stack-up.sh`.
   `3.5.3`), so there was no way to verify which version, if any, actually
   carries the fix without guessing. Added time-boxed `.trivyignore` entries
   instead (owner + 2026-10-13 review date) rather than bump to an unverified
-  version — see the file for the full justification. Re-triage before that
-  date with a real Maven Central / NVD lookup once one is possible.
+  version — see the file for the full justification. **Resolved
+  2026-10-13**: a real Maven Central lookup showed `tomcat-embed-core`
+  11.0.25 exists; see the next entry. The entries are gone from
+  `.trivyignore`.
 - **Hit for real on 2026-10-09 (no code change, database-driven):** CI on
-  `main` failed in `trivy` only, after the vulnerability database updated.
-  Two fixable CRITICAL CVEs in `spring-webmvc` 7.0.8 (`CVE-2026-47890`,
-  `CVE-2026-47884`, fixed in 7.0.9). `publish` and the Release run were
-  skipped because `trivy` failed; no image was pushed from that commit. Fix:
-  bump `spring-boot-starter-parent` 4.1.0 -> 4.1.1 (manages Spring Framework
-  7.0.9 and Tomcat 11.0.24), per
-  [ADR 0010](../adr/0010-spring-boot-parent-bump.md). Result of the CI run on
-  the fix: see the status line below once recorded.
+  `main` failed in `trivy` only, after the vulnerability database updated
+  (run `37978524714`). Two fixable CRITICAL CVEs in `spring-webmvc` 7.0.8
+  (`CVE-2026-47890`, `CVE-2026-47884`, fixed in 7.0.9). `publish` and the
+  Release run were skipped because `trivy` failed, so no image was pushed
+  from that commit. Fix: bump `spring-boot-starter-parent` 4.1.0 -> 4.1.1
+  (manages Spring Framework 7.0.9), per
+  [ADR 0010](../adr/0010-spring-boot-parent-bump.md). **Confirmed**: run
+  `38432895737` on `922ed64`, all jobs green.
+- **Hit for real on 2026-10-13: removing an expired `.trivyignore` entry
+  showed it was still needed.** The three Tomcat entries reached their
+  review date. The 4.1.1 bump moves managed Tomcat to 11.0.24, so they were
+  removed to see whether Trivy still needed them. Run `38434821462` on
+  `32df848` failed in `trivy`: `CVE-2026-68525`, `CVE-2026-65905` and
+  `CVE-2026-65182` are still reported against `tomcat-embed-core` 11.0.24,
+  fixed in 11.0.25. Fix: `tomcat.version` set to 11.0.25 in `pom.xml` (the
+  property Spring Boot documents for overriding a managed version; see
+  ADR 0010). **Confirmed**: run `38435479311` on `0482dca`, all 7 jobs green
+  (`build-test`, `quality-gate`, `image`, `trivy`, `config-scan`, `publish`
+  and the JUnit report), with no suppressions in `.trivyignore`. Lesson:
+  an expiry date on an ignore entry is only useful if expiry triggers a
+  real re-scan, not a renewal by default.
 - **Digest mismatch**: structurally prevented by ADR 0005's design
   (`release.yml` never rebuilds), verified at runtime by check #4 above.
 - **Testcontainers without Docker**: **confirmed working** — `build-test`
