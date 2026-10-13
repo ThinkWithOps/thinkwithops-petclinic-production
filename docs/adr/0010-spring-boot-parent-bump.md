@@ -20,7 +20,11 @@ Option 2. One parent version change keeps every Spring library on the combinatio
 
 `pom.xml` now differs from upstream (`build.gradle` upstream and in this repo still say 4.1.0; Gradle files are left untouched on purpose). A future merge from `upstream` will conflict on the parent version line and must be resolved deliberately, not by taking upstream's version.
 
-The 4.1.1 upgrade also moves Tomcat. The three `.trivyignore` Tomcat entries were accepted because no patched parent could be verified at the time; whether 4.1.1 clears them is decided by Trivy, not assumed, and the entries are removed only after a green run without them.
+The 4.1.1 upgrade also moves Tomcat (11.0.22 to 11.0.24). The three `.trivyignore` Tomcat entries were accepted because no patched parent could be verified at the time. Removing them on 2026-10-13 showed that 4.1.1 does not clear them: Trivy still reported `CVE-2026-68525`, `CVE-2026-65905` and `CVE-2026-65182` against `tomcat-embed-core` 11.0.24, fixed in 11.0.25. Maven Central lists 11.0.25 (and newer).
+
+## Follow-up decision: override Tomcat
+
+Because a fix exists, ignoring the CVEs again would break the ADR 0008 rule. `pom.xml` therefore sets `tomcat.version` to 11.0.25 (the lowest version Trivy names as fixed, so the change stays a single patch step), using the property Spring Boot documents for overriding a managed version. The property carries a comment saying when to remove it: once the parent manages 11.0.25 or newer. The `.trivyignore` file stays empty of suppressions.
 
 ## Enterprise scale
 
