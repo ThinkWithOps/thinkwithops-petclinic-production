@@ -173,7 +173,20 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 
 ## Prerequisites
 
-**V1 (run the app)** — a local machine or any Docker host:
+### Choose a deployment path
+
+| Goal | Where it runs | What users need |
+|---|---|---|
+| Run the PetClinic application | Local Linux Docker host, Linux VM, or cloud VM | Docker Engine, Compose v2, Buildx, Git, curl, Python 3 |
+| Use hosted CI/CD | GitHub-hosted runners | GitHub fork, SonarQube Cloud project, repository secrets |
+| Use self-hosted CI/CD | Local or cloud Linux Docker host | Docker Engine plus about 6 GB free RAM for Jenkins, SonarQube, PostgreSQL, and Nexus |
+
+V1 and V2 are provider-neutral Docker deployments. They do not provision cloud
+infrastructure, DNS, TLS, firewalls, backups, or high availability. When using a
+cloud VM, the operator supplies those controls. Provider-specific Terraform is
+planned for V3; Kubernetes deployment is planned for V4.
+
+**V1 (run the app)** — a local Linux machine or remote/cloud Linux Docker host:
 
 - Docker Engine + Compose v2 plugin + Buildx (for the BuildKit cache mount)
 - `git`, `curl`, `python3`
@@ -185,7 +198,14 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 - **GitHub Actions:** a GitHub account and a fork of this repo. Nothing runs on your machine. A SonarCloud account and two repository secrets are needed (checklist below)
 - **Self-hosted Jenkins stack:** a Linux Docker host with roughly 6 GB or more free RAM, `vm.max_map_count >= 262144`, access to the host Docker socket, and free ports `8090` (Jenkins), `9000` (SonarQube) and `8081` (Nexus)
 
-No AWS/Azure/GCP account is needed for V1 or V2.
+Windows users can run the self-hosted stack locally through Docker Desktop with
+the WSL2 backend and an Ubuntu distribution. Enable Docker Desktop's WSL
+integration for Ubuntu, clone the repository inside the Ubuntu filesystem, and
+run every shell command from the Ubuntu terminal. See
+[`docs/ci-jenkins.md`](docs/ci-jenkins.md#windows--docker-desktop--wsl2).
+
+No AWS/Azure/GCP account is required for V1 or V2. A cloud account is needed
+only when the user chooses to run the Docker host in that cloud.
 
 ---
 
@@ -265,6 +285,8 @@ Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. The
 What it needs and does:
 
 - Linux Docker host, about 6 GB or more free RAM, `vm.max_map_count >= 262144` for SonarQube's embedded Elasticsearch (the script prints the `sysctl` command).
+- On Windows, Docker Desktop using its WSL2 backend plus Ubuntu integration;
+  run the commands inside Ubuntu, where the stack sees a Linux Docker host.
 - Jenkins uses the **host** Docker daemon through `/var/run/docker.sock`; the script writes the socket's group ID to `ci/.env` as `DOCKER_GID`. Generated passwords stay in `ci/.env` (mode 0600, never committed).
 - Manual first-run steps (full click-by-click guide: [`docs/ci-jenkins.md`](docs/ci-jenkins.md)):
   1. SonarQube: set the admin password, create the project, generate a user token.
