@@ -90,10 +90,12 @@ cd thinkwithops-petclinic-production
 
 The first run builds the Jenkins image (plugins, Docker CLI, Trivy, Checkov, ShellCheck)
 and takes several minutes. It creates `ci/.env` with random passwords (mode `0600`,
-never committed), records the Docker socket's group ID as `DOCKER_GID`, and records
-the Docker engine bridge gateway as `DOCKER_HOST_GATEWAY`. Jenkins uses that gateway
-to reach database ports published by tests on the host daemon. This explicit mapping
-also avoids Docker Desktop routing `host.docker.internal` outside its Linux engine.
+never committed) and records the Docker socket's group ID as `DOCKER_GID`.
+
+Tests run inside the Jenkins container but start their databases on the host Docker
+daemon. Jenkins reaches them through `host.docker.internal`, and `ci/compose.yaml` sets
+`MYSQL_PORT=0` and `POSTGRES_PORT=0` so Docker assigns random host ports. A database
+already running on host port 3306 or 5432 therefore cannot intercept the tests.
 
 Check it:
 
@@ -302,7 +304,7 @@ See [`docs/troubleshooting.md`](troubleshooting.md). The common ones:
 | `ERROR: Install python3 before continuing.` | Install `python3` on the host and re-run `./scripts/ci-stack-up.sh`. |
 | `sonarqube` restarts in a loop | `sudo sysctl -w vm.max_map_count=262144` on the host. |
 | `permission denied ... /var/run/docker.sock` inside Jenkins | `DOCKER_GID` in `ci/.env` must equal `stat -c '%g' /var/run/docker.sock`. |
-| PostgreSQL test says `password authentication failed for user "petclinic"` only inside Jenkins | Re-run `./scripts/ci-stack-up.sh`; it refreshes `DOCKER_HOST_GATEWAY` from the Docker `bridge` network and recreates Jenkins with the correct host route. |
+| PostgreSQL or MySQL test fails to authenticate only inside Jenkins | A database on the host already owns 5432 or 3306. Use the current `ci/compose.yaml` (Jenkins sets `MYSQL_PORT=0` and `POSTGRES_PORT=0`), then `./scripts/ci-stack-up.sh` to recreate Jenkins. |
 | `quality gate wait` times out | Webhook missing or wrong URL (step 4). |
 | Jenkins build fails on a plugin | A pinned version in `ci/jenkins/plugins.txt` needs a different Jenkins core; see troubleshooting. |
 | `bind: address already in use` | Another service owns the port; set `JENKINS_PORT`, `SONARQUBE_PORT` or `NEXUS_PORT` before the first run. |
