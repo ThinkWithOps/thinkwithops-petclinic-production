@@ -47,6 +47,10 @@ services:
       # Spring Boot would resolve the published port's host as "localhost" — this
       # container — so name the host explicitly. No test is skipped or changed.
       SPRING_DOCKER_COMPOSE_HOST: host.docker.internal
+      # Keep fixed 3306/5432 defaults for normal local use. Jenkins asks Docker
+      # for random host ports so existing local databases cannot intercept tests.
+      MYSQL_PORT: "0"
+      POSTGRES_PORT: "0"
     # `mvnw verify` runs INSIDE this container but starts its test databases on the
     # HOST daemon (mounted socket), so their published ports are on the host, not on
     # this container's localhost. host.docker.internal -> the host gateway on Linux.
