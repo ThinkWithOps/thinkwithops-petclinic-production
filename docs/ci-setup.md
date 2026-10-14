@@ -1,5 +1,8 @@
 # One-time CI/CD setup (repo/org settings, not versionable as code)
 
+This file covers the GitHub Actions path. The self-hosted Jenkins path is in
+[`docs/ci-jenkins.md`](ci-jenkins.md).
+
 Everything below is a GitHub/SonarCloud UI setting, not a file in this repo —
 do these once per fork/clone that wants working CI, in this order. Discovered
 by running the pipeline for real and fixing what it hit; see the ADRs in
@@ -76,7 +79,13 @@ an org owner or a bot/machine account with a PAT of its own.
 → "Read and write permissions" must be selected (this also covers the SARIF
 upload / code-scanning write the `trivy` and `config-scan` jobs need).
 
-## 4. Branch protection
+## 4. Self-hosted Jenkins + SonarQube + Nexus (optional)
+
+Not needed for the GitHub Actions pipeline. For the self-hosted stack in `ci/`
+(ports, SonarQube token and webhook, Jenkins credentials, Nexus deploy user, running
+the `petclinic-ci` job) follow [`docs/ci-jenkins.md`](ci-jenkins.md).
+
+## 5. Branch protection
 
 See [`docs/branch-protection.md`](branch-protection.md) — required checks,
 squash-merge-only, PR title as the squash commit message (release-please

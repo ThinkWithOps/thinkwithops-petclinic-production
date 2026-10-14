@@ -146,7 +146,7 @@ flowchart TD
 
 Details and the real first-run failures that were hit and fixed: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md).
 
-Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). One-time setup (SonarCloud, org PR permissions, GHCR): [`docs/ci-setup.md`](docs/ci-setup.md). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
+Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/promote-by-digest, action pinning + SonarQube Cloud vs. self-hosted, Jenkins/Nexus scope + release-please over `versions-maven-plugin`, vulnerability acceptance policy, why upstream's workflows were removed). One-time setup (SonarCloud, org PR permissions, GHCR): [`docs/ci-setup.md`](docs/ci-setup.md). Self-hosted Jenkins/SonarQube/Nexus step by step: [`docs/ci-jenkins.md`](docs/ci-jenkins.md). Required-checks setup: [`docs/branch-protection.md`](docs/branch-protection.md). Platform portability: [`docs/ci-portability.md`](docs/ci-portability.md).
 
 ---
 
@@ -266,7 +266,22 @@ What it needs and does:
 
 - Linux Docker host, about 6 GB or more free RAM, `vm.max_map_count >= 262144` for SonarQube's embedded Elasticsearch (the script prints the `sysctl` command).
 - Jenkins uses the **host** Docker daemon through `/var/run/docker.sock`; the script writes the socket's group ID to `ci/.env` as `DOCKER_GID`. Generated passwords stay in `ci/.env` (mode 0600, never committed).
-- Manual first-run steps, printed by the script: create a SonarQube token and store it as the Jenkins credential `SONAR_TOKEN_LOCAL`; add the SonarQube webhook `http://jenkins:8080/sonarqube-webhook/` (without it the quality-gate stage times out); create a Nexus deploy user and store it as `NEXUS_DEPLOY_CREDENTIALS`.
+- Manual first-run steps (full click-by-click guide: [`docs/ci-jenkins.md`](docs/ci-jenkins.md)):
+  1. SonarQube: set the admin password, create the project, generate a user token.
+  2. SonarQube webhook `http://jenkins:8080/sonarqube-webhook/` (without it the quality-gate stage times out).
+  3. Nexus: read the one-time admin password, set a new one, create a deploy user.
+  4. Jenkins: **Manage Jenkins -> Credentials -> System -> Global credentials -> Add Credentials**. Add `SONAR_TOKEN_LOCAL` (Secret text) and `NEXUS_DEPLOY_CREDENTIALS` (Username with password); the IDs must match exactly.
+  5. Jenkins: open `petclinic-ci` and choose **Build Now**.
+
+Ports (set in `ci/.env`; change them before the first run if one is taken):
+
+| Service | Default | Open at | Variable |
+|---|---|---|---|
+| Jenkins | `8090` | `http://<host>:8090` (login: `JENKINS_ADMIN_USER` / `JENKINS_ADMIN_PASSWORD` in `ci/.env`) | `JENKINS_PORT` |
+| SonarQube | `9000` | `http://<host>:9000` (first login `admin` / `admin`) | `SONARQUBE_PORT` |
+| Nexus | `8081` | `http://<host>:8081` | `NEXUS_PORT` |
+
+`<host>` is `localhost` on the Docker host itself, or its IP/DNS name from another machine. Nexus `8081` and the V1 app's default `8080` do not collide; if you run other services there, `export NEXUS_PORT=8083` before `./scripts/ci-stack-up.sh`.
 - The seeded `petclinic-ci` job reads the `Jenkinsfile` from the `main` branch of this GitHub repo.
 - Stages: verify → SonarQube → quality gate → image build → Trivy → Checkov + ShellCheck → SBOM → publish the tested JAR to Nexus. Differences from the GitHub Actions pipeline: [`docs/ci-portability.md`](docs/ci-portability.md).
 

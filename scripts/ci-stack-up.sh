@@ -128,10 +128,12 @@ run on the HOST (not in a container):
 
 First-run manual steps (do these in each tool's UI — credentials are stored as
 Jenkins credentials afterward, never written to this repo):
+Full click-by-click guide: docs/ci-jenkins.md
   1. SonarQube (default http://localhost:9000, admin/admin on first login):
      change the admin password, then create a project + generate a token
      (My Account > Security). Store it as a Jenkins "Secret text" credential
-     named SONAR_TOKEN_LOCAL. The Jenkins-side server entry "local-sonarqube"
+     named SONAR_TOKEN_LOCAL (Jenkins: Manage Jenkins > Credentials > System >
+     Global credentials > Add Credentials). The Jenkins-side server entry "local-sonarqube"
      (http://sonarqube:9000) is already created by ci/jenkins/casc.yaml.
   2. SonarQube webhook (REQUIRED): Administration > Configuration > Webhooks >
      Create, URL  http://jenkins:8080/sonarqube-webhook/  (no secret needed).
