@@ -13,6 +13,7 @@ pipeline {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
+        skipDefaultCheckout(true)
     }
 
     environment {
@@ -25,6 +26,10 @@ pipeline {
         // is read from the checked-out tree here and exported to every later stage.
         stage('prepare') {
             steps {
+                // Jenkins keeps workspaces between builds. Remove generated files
+                // such as sbom.cdx.json before Checkstyle scans the repository.
+                deleteDir()
+                checkout scm
                 script {
                     env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
                     env.SHORT_SHA = env.GIT_SHA.take(12)
