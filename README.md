@@ -133,12 +133,29 @@ flowchart TD
 
 **Build-once, promote-by-digest:** the image built and Trivy-scanned in the `image`/`trivy` jobs is the exact `image.tar` the `publish` job loads and pushes — never rebuilt. `release.yml` never runs `docker build`; it retags that same pushed digest to the release's semver tag and proves the digests match in the job log. Full write-up: [`docs/architecture/v2-cicd.md`](docs/architecture/v2-cicd.md).
 
+### GitHub Actions vs. self-hosted Jenkins
+
+These are two independent CI/CD paths. The GitHub Actions path works without the self-hosted stack; Jenkins, local SonarQube, and Nexus provide an optional alternative for environments that need CI on their own Docker host.
+
+| GitHub Actions path | Self-hosted Jenkins path |
+|---|---|
+| Builds and tests PetClinic | Builds and tests PetClinic |
+| Uses SonarQube Cloud for the quality gate | Uses local SonarQube for the quality gate |
+| Builds the container image | Builds the container image |
+| Runs Trivy, Checkov, and ShellCheck | Runs Trivy, Checkov, and ShellCheck |
+| Creates an SBOM | Creates an SBOM |
+| Pushes the scanned image to GHCR | Keeps the scanned image on the host Docker daemon |
+| Creates a GitHub release and promotes the GHCR image by digest after the release PR is merged | Publishes the checksum-verified JAR to Nexus |
+| Does not keep the application running | Does not keep the application running |
+
+Both paths produce validated artifacts; neither is an application hosting platform. To use PetClinic, run the resulting image on a local Docker host, VM, cloud service, or Kubernetes cluster. See [Open the image built by Jenkins](#open-the-image-built-by-jenkins) for the local Jenkins image.
+
 ### V2 status
 
 | Area | Status |
 |---|---|
 | CI on `main` (`build-test`, `quality-gate`, `image`, `trivy`, `config-scan`, `publish`) | Verified on real GitHub Actions runs |
-| Trivy blocks fixable CRITICAL CVEs | Verified — it caught 3 real Tomcat CVEs (now time-boxed in `.trivyignore`) |
+| Trivy blocks fixable CRITICAL CVEs | Verified — it caught 3 real Tomcat CVEs; Spring Boot 4.1.1 supplied the fix and `.trivyignore` now has no active suppressions |
 | Release after CI, digest promotion without a rebuild | Verified on `petclinic-v1.1.0` (source and promoted digests match, shown in the job log) |
 | Self-hosted Jenkins + SonarQube + Nexus (`ci/`, `Jenkinsfile`) | **Verified locally** end to end: all nine stages green, SonarQube quality gate passed, and the tested JAR published to Nexus (post-download SHA-256 comparison not yet done) |
 | A deliberately failing PR being blocked | Not tested |
@@ -272,6 +289,26 @@ Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. The
 - release-please needs a `RELEASE_PLEASE_TOKEN` secret (a PAT); a PR opened with the default `GITHUB_TOKEN` never triggers CI. Setup: [`docs/ci-setup.md`](docs/ci-setup.md).
 - Maven `SNAPSHOT` bump PRs are turned off (`skip-snapshot` in `release-please-config.json`), so there is one release PR per release.
 - Current release: [`petclinic-v1.1.0`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/petclinic-v1.1.0). Full history: [`CHANGELOG.md`](CHANGELOG.md).
+
+#### Run the image published by GitHub Actions
+
+GitHub Actions publishes the validated image but does not leave PetClinic running. Pull a release tag onto any Docker host and start it explicitly:
+
+```bash
+IMAGE=ghcr.io/thinkwithops/thinkwithops-petclinic-production:petclinic-v1.1.0
+docker pull "$IMAGE"
+docker rm -f petclinic-app 2>/dev/null || true
+docker run -d --name petclinic-app -p 8080:8080 "$IMAGE"
+docker logs -f petclinic-app
+```
+
+After `Started PetClinicApplication` appears, press `Ctrl+C` and open
+`http://localhost:8080`. On a remote Docker host, use
+`http://<host-address>:8080` and allow that port only from trusted networks.
+If GHCR returns `denied`, make the package public or authenticate with a token
+that has `read:packages`. This single-container command demonstrates the
+released image; use the V1 Compose deployment above for the PostgreSQL + Nginx
+runtime stack.
 
 #### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
 
@@ -447,6 +484,16 @@ CHANGELOG.md                   # maintained by release-please
 
 Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
+| Symptom | Likely cause / fix |
+|---|---|
+| Jenkins image build appears stuck at `jenkins-plugin-cli` | Container/build-network TLS path cannot reach Jenkins update servers. Keep `build.network: host` in `ci/compose.yaml`, then rerun `./scripts/ci-stack-up.sh`; use `docker compose --env-file ci/.env -f ci/compose.yaml build --progress=plain jenkins` for detailed output. |
+| SonarQube or Nexus remains `health: starting` | First start commonly takes 2–4 minutes. Check with `docker compose --env-file ci/.env -f ci/compose.yaml ps` and inspect that service's logs before restarting it. |
+| Jenkins `quality gate wait` times out | Create the SonarQube webhook exactly as `http://jenkins:8080/sonarqube-webhook/`, including the trailing slash. |
+| Jenkins integration tests wait for MySQL/PostgreSQL | Use the current `ci/compose.yaml`, which supplies `host.docker.internal` and random test-container host ports, then recreate Jenkins with `./scripts/ci-stack-up.sh`. |
+| Nexus deploy returns `401 Unauthorized` | Jenkins credential `NEXUS_DEPLOY_CREDENTIALS` must contain the active Nexus `jenkins-deploy` username and its current password; the ID is case-sensitive. |
+| Nexus rejects `does not allow updating asset` | That release version already exists and `maven-releases` disables redeployment. Bump the Maven version; do not weaken the repository policy. |
+| PetClinic image exists but browser cannot connect | A CI pipeline does not start the application. Run the GHCR or Jenkins-built image explicitly, publish port `8080`, then check `docker logs petclinic-app`. |
+
 ---
 
 ## Command Reference
@@ -467,6 +514,11 @@ Symptom → cause → diagnosis → fix: [`docs/troubleshooting.md`](docs/troubl
 | `checkov --config-file .checkov.yaml` | Reproduce the `config-scan` CI job locally |
 | `./scripts/ci-stack-up.sh` / `--down` | Bring up / tear down the self-hosted Jenkins + SonarQube + Nexus stack |
 | `docker compose --env-file ci/.env -f ci/compose.yaml ps` | Health of the self-hosted CI stack's containers |
+| `docker compose --env-file ci/.env -f ci/compose.yaml logs <service> --tail=100` | Recent logs for `jenkins`, `sonarqube`, `sonarqube-db`, or `nexus` |
+| `docker images petclinic-local --format '{{.Repository}}:{{.Tag}}'` | List images built by the Jenkins pipeline on the host Docker daemon |
+| `docker run -d --name petclinic-app -p 8080:8080 <image>` | Start a Jenkins-built or GHCR image so PetClinic is actually reachable |
+| `docker logs -f petclinic-app` | Follow startup; open the app after `Started PetClinicApplication` appears |
+| `docker pull ghcr.io/<owner>/<repo>:petclinic-vX.Y.Z` | Pull a released image produced by the GitHub Actions path |
 | `gh run list --workflow Release -R ThinkWithOps/thinkwithops-petclinic-production` | Recent release runs (a `skipped` run means CI did not succeed, not a failure) |
 | `gh release list -R ThinkWithOps/thinkwithops-petclinic-production` | Published releases and their `petclinic-vX.Y.Z` tags |
 | `docker buildx imagetools inspect ghcr.io/<repo>:<tag>` | Check a GHCR image's manifest digest (used to verify digest-promotion) |
