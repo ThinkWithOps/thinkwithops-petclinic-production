@@ -2,8 +2,8 @@
 
 Status: the GitHub Actions path (CI, release-please, digest promotion) is
 **runtime-verified** on real runs, including release `petclinic-v1.1.0`. The
-self-hosted Jenkins/SonarQube/Nexus path is **implementation prepared; runtime
-verification pending** a real Docker engine (see `docs/validation/v2-cicd.md`).
+self-hosted Jenkins/SonarQube/Nexus path is also **runtime-verified** end to end
+on Docker Desktop with WSL2 (see `docs/validation/v2-cicd.md`).
 
 ## PR path
 
@@ -63,7 +63,7 @@ to main, `publish` loads that identical `image.tar` and pushes it to GHCR as
 it pulls `sha-<short>` and retags it to the release's semver tag by digest.
 See `docs/adr/0005-build-once-promote-by-digest.md`.
 
-## Self-hosted parity (implementation prepared; runtime verification pending)
+## Self-hosted parity (runtime-verified)
 
 `ci/compose.yaml` + `Jenkinsfile` run an **equivalent** stage contract
 (`docs/ci-portability.md`, which lists the differences) for environments
@@ -75,6 +75,8 @@ Checkov, ShellCheck and the SBOM step from tools baked into its image.
 
 Base images here are pinned by version tag, not digest: the app stack under
 `docker/` is digest-pinned, but Jenkins, SonarQube, Nexus and the tool images
-copied into the Jenkins image (Docker CLI, Trivy) are not. GitHub Actions and
-release promotion are the verified path; nothing in this self-hosted section
-should be read as verified until Part B runs.
+copied into the Jenkins image (Docker CLI, Trivy) are not. The self-hosted path
+completed all nine stages, passed its local SonarQube quality gate, and
+published the verify-stage JAR to Nexus after `sha256sum -c` passed in Jenkins. A
+post-download comparison of the Nexus copy against `verified-jar.sha256` has not
+been run yet.

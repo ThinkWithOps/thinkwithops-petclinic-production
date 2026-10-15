@@ -4,8 +4,10 @@ Step-by-step setup for the stack in `ci/compose.yaml`. Run it on any Linux Docke
 host you control: a laptop, a VM or a cloud instance. The GitHub Actions path
 ([`docs/ci-setup.md`](ci-setup.md)) needs none of this.
 
-> **Status:** implementation prepared; end-to-end runtime verification pending.
-> Treat the "expected" results below as the acceptance criteria, not as recorded output.
+> **Status:** runtime-verified end to end on Docker Desktop with Ubuntu WSL2
+> (2026-10-14): all nine stages passed, the local quality gate passed, and the
+> JAR appeared in Nexus after `sha256sum -c` passed in Jenkins. The download-and-compare
+> check in step 8 has not been run yet.
 
 ## Ports
 

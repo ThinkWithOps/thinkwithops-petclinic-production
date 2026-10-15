@@ -63,7 +63,7 @@ One repository, one continuous journey. Each milestone is an annotated Git tag +
 | Tag | Focus |
 |---|---|
 | [`v1-containerized`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/releases/tag/v1-containerized) | Hardened Docker image, PostgreSQL, Nginx, health-based startup — **verified** |
-| [`v2-cicd`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/tree/v2-cicd) | Build-once/promote-by-digest CI/CD, quality/security gates, semantic release — **current** (GitHub Actions path verified; self-hosted Jenkins/Nexus path prepared, runtime verification pending) |
+| [`v2-cicd`](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/tree/v2-cicd) | Build-once/promote-by-digest CI/CD, quality/security gates, semantic release — **current** (GitHub Actions and self-hosted Jenkins/SonarQube/Nexus paths runtime-verified) |
 | `v3-aws-iac` | Terraform-provisioned AWS infrastructure |
 | `v4-kubernetes` | Kubernetes deployment |
 
@@ -113,7 +113,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) (base image/size budge
 
 Starting point: V1 solved environment consistency, but building, testing, scanning, versioning, and releasing were all manual. Nothing prevented a vulnerable image, a failing quality gate, or an untested change from shipping — and there was no guarantee the image that was tested was the image that got released.
 
-V2 adds: the container image is built once; every change is tested, quality-gated (SonarQube Cloud), security-scanned (Trivy for images/dependencies, Checkov for Dockerfile/workflow config), versioned (release-please, Conventional Commits), and promoted to a release tag **by digest, with no rebuild** — and, once branch protection is applied per [`docs/branch-protection.md`](docs/branch-protection.md) (not confirmed applied on this repo), PR merges are blocked on any gate failing. A self-hosted Jenkins + SonarQube + Nexus stack (`ci/`) runs an equivalent stage contract (differences listed in [`docs/ci-portability.md`](docs/ci-portability.md)) for environments without SaaS-runner access. Implementation prepared; runtime verification pending.
+V2 adds: the container image is built once; every change is tested, quality-gated (SonarQube Cloud), security-scanned (Trivy for images/dependencies, Checkov for Dockerfile/workflow config), versioned (release-please, Conventional Commits), and promoted to a release tag **by digest, with no rebuild** — and, once branch protection is applied per [`docs/branch-protection.md`](docs/branch-protection.md) (not confirmed applied on this repo), PR merges are blocked on any gate failing. A self-hosted Jenkins + SonarQube + Nexus stack (`ci/`) runs an equivalent stage contract (differences listed in [`docs/ci-portability.md`](docs/ci-portability.md)) for environments without SaaS-runner access. That self-hosted path has run successfully end to end on Docker Desktop with WSL2.
 
 ## V2 Architecture
 
@@ -140,7 +140,7 @@ flowchart TD
 | CI on `main` (`build-test`, `quality-gate`, `image`, `trivy`, `config-scan`, `publish`) | Verified on real GitHub Actions runs |
 | Trivy blocks fixable CRITICAL CVEs | Verified — it caught 3 real Tomcat CVEs (now time-boxed in `.trivyignore`) |
 | Release after CI, digest promotion without a rebuild | Verified on `petclinic-v1.1.0` (source and promoted digests match, shown in the job log) |
-| Self-hosted Jenkins + SonarQube + Nexus (`ci/`, `Jenkinsfile`) | Implementation prepared; **runtime verification pending** a real Docker engine |
+| Self-hosted Jenkins + SonarQube + Nexus (`ci/`, `Jenkinsfile`) | **Verified locally** end to end: all nine stages green, SonarQube quality gate passed, and the tested JAR published to Nexus (post-download SHA-256 comparison not yet done) |
 | A deliberately failing PR being blocked | Not tested |
 | Branch protection / required checks (`docs/branch-protection.md`) | Documented, **not applied** to this repo (direct pushes to `main` are allowed) |
 
@@ -167,7 +167,7 @@ Design decisions and trade-offs: [`docs/adr/`](docs/adr/) 0005-0009 (build-once/
 | Checkov | Dockerfile + GitHub Actions config scan |
 | release-please | Conventional-Commits-driven semantic versioning, changelog, GitHub Releases |
 | GHCR | Registry for the scanned image (`sha-<short>`) and the release tag (`petclinic-vX.Y.Z`) |
-| Jenkins + Nexus (self-hosted, `ci/`) | Equivalent stage contract for environments without GitHub-hosted runners; Nexus holds versioned JARs. Prepared, not yet runtime-verified |
+| Jenkins + Nexus (self-hosted, `ci/`) | Runtime-verified equivalent stage contract; Nexus holds the JAR produced by `verify`, uploaded only after `sha256sum -c` passes |
 
 ---
 
@@ -248,7 +248,7 @@ V2 is a CI/CD pipeline, not a second app to start. There are two implementations
 | Path | Where it runs | Status |
 |---|---|---|
 | GitHub Actions (`ci.yml`, `release.yml`) | GitHub-hosted runners, on your fork | Verified on real runs |
-| Self-hosted Jenkins + SonarQube + Nexus (`ci/`) | A Linux Docker host you control | Implementation prepared; runtime verification pending |
+| Self-hosted Jenkins + SonarQube + Nexus (`ci/`) | A Linux Docker host you control | Verified locally on Docker Desktop with WSL2 |
 
 #### GitHub Actions — set up your fork
 
@@ -275,7 +275,7 @@ Every PR runs `build-test` → `quality-gate` → `trivy` → `config-scan`. The
 
 #### Run the self-hosted CI stack (Jenkins + SonarQube + Nexus)
 
-> **Status:** implementation prepared; runtime verification pending. The GitHub Actions path above is the verified one.
+> **Status:** runtime-verified end to end on Docker Desktop with WSL2. The GitHub Actions path is also verified on real runs.
 
 ```bash
 ./scripts/ci-stack-up.sh          # creates ci/.env, builds Jenkins, starts the stack, prints first-run steps
@@ -307,13 +307,63 @@ Ports (set in `ci/.env`; change them before the first run if one is taken):
 - The seeded `petclinic-ci` job reads the `Jenkinsfile` from the `main` branch of this GitHub repo.
 - Stages: verify → SonarQube → quality gate → image build → Trivy → Checkov + ShellCheck → SBOM → publish the tested JAR to Nexus. Differences from the GitHub Actions pipeline: [`docs/ci-portability.md`](docs/ci-portability.md).
 
+#### Validate the self-hosted pipeline
+
+1. Jenkins (`http://localhost:8090`): open `petclinic-ci` and its latest build.
+   Confirm `SUCCESS` and all nine stages green: `prepare`, `verify`, `sonar
+   (local)`, `quality gate wait`, `image build`, `trivy`, `checkov +
+   shellcheck`, `sbom`, and `deploy JAR to Nexus`.
+2. SonarQube (`http://localhost:9000`): open the `petclinic` project and
+   confirm **Quality Gate: Passed**. Under **Administration -> Configuration
+   -> Webhooks**, confirm the latest Jenkins delivery returned HTTP 200.
+3. Nexus (`http://localhost:8081`): open **Browse -> maven-releases**, then
+   `org/springframework/samples/spring-petclinic/1.1.0`. Confirm the JAR, POM,
+   Maven metadata, and checksum files exist.
+4. Jenkins build page -> **Build Artifacts**: confirm the tested JAR,
+   `verified-jar.sha256`, `trivy-results.sarif`, and `sbom.cdx.json` exist.
+
+Nexus `maven-releases` normally disables redeployment. After version `1.1.0`
+has been published successfully, another build of that same version can pass
+every quality/security stage and then fail at the final upload. Bump the Maven
+version for the next release; do not weaken the repository policy merely to
+make repeated demonstrations green.
+
+#### Open the image built by Jenkins
+
+The pipeline builds `petclinic-local:<commit>` on the host Docker daemon but
+does not leave an application container running. In the same Linux/WSL terminal:
+
+```bash
+IMAGE=$(docker images petclinic-local --format '{{.Repository}}:{{.Tag}}' | head -n 1)
+test -n "$IMAGE" || { echo 'No Jenkins-built petclinic-local image found' >&2; exit 1; }
+
+docker rm -f petclinic-app 2>/dev/null || true
+docker run -d --name petclinic-app -p 8080:8080 "$IMAGE"
+docker logs -f petclinic-app
+```
+
+Wait for `Started PetClinicApplication`, press `Ctrl+C` (the container keeps
+running), then open `http://localhost:8080`. Check it without a browser using:
+
+```bash
+docker ps --filter name=petclinic-app
+curl -I http://localhost:8080
+```
+
+Stop and remove only the application container when finished:
+
+```bash
+docker stop petclinic-app
+docker rm petclinic-app
+```
+
 ---
 
 ## Validation
 
 V1: [`docs/validation/v1-containerized.md`](docs/validation/v1-containerized.md) — container health, network isolation, non-root UIDs, actuator blocking, PostgreSQL persistence, measured image size.
 
-V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Partially verified**: `ci.yml` is green on real GitHub Actions runs and release digest-promotion is verified on `petclinic-v1.1.0`; the self-hosted Jenkins/Nexus path is **implementation prepared; runtime verification pending** (needs a real Docker engine with several GB of RAM). A deliberately failing PR and branch protection have not been tested or applied.
+V2: [`docs/validation/v2-cicd.md`](docs/validation/v2-cicd.md) — PR gating, digest-promotion proof, Jenkins/Nexus parity. **Runtime-verified paths**: `ci.yml` is green on real GitHub Actions runs; release digest promotion is verified on `petclinic-v1.1.0`; and the self-hosted Jenkins/SonarQube/Nexus pipeline completed all nine stages, passed its local quality gate, and published `spring-petclinic-1.1.0.jar` to Nexus. A deliberately failing PR and branch protection have not been tested or applied.
 
 ---
 

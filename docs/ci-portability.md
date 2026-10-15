@@ -4,7 +4,7 @@ The pipeline's stage contract — verify, quality gate, image build, vulnerabili
 scan, config scan, SBOM, publish — is implemented twice in this repo and
 sketched once for GitLab:
 `.github/workflows/ci.yml` (GitHub Actions, runtime-verified), `Jenkinsfile`
-(self-hosted Jenkins, implementation prepared; runtime verification pending)
+(self-hosted Jenkins, runtime-verified on Docker Desktop with WSL2)
 and, illustratively, GitLab CI below. The contract is *equivalent*, not
 identical — see "Differences" below. The point is that no stage
 depends on a GitHub-Actions-only or Jenkins-only capability; each is a
