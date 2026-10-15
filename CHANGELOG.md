@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.1](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.1.0...petclinic-v1.1.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* clean Jenkins workspace before checkout ([36d71c9](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/36d71c981706191a2a5ffcd522dd1fabbd543a63))
+* **deps:** bump spring-boot-starter-parent to 4.1.1 ([922ed64](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/922ed6491dc0e540915352c41499df454b6a4613))
+* **deps:** override managed Tomcat to 11.0.25 ([0482dca](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/0482dca5704a479a80d5b444ac47b49542e3a956))
+* isolate Jenkins integration test ports ([0024369](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/00243691401d64cbbe66d9e86e6f3be1cdb13b01))
+
+
+### Documentation
+
+* add self-hosted Jenkins setup guide with ports and credentials ([2d101db](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/2d101db031153dd6672c7b6ae225e456ee844664))
+* add Windows WSL2 path and finer Jenkins/Nexus setup steps ([5ddefe6](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/5ddefe6e7a872adacd23398f1948b265f2bb9045))
+* bring README up to date with verified V2 state ([386b15e](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/386b15ebeb9b3073e682ff324fa7ca053380a7af))
+* clarify hosted and self-hosted CI paths ([f8315a3](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/f8315a3534fedae89dee0c363294703b598c85f9))
+* mark release digest promotion verified (petclinic-v1.1.0) ([#8](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/issues/8)) ([2d1ad73](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/2d1ad7344ca3c30c791a7dc6b8a819255073a93c))
+* record Trivy fixes and the expired-entry lesson in V2 validation ([0623cc6](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/0623cc6d7ef13c05782d24983e3c759c6ccf2cec))
+* record verified self-hosted Jenkins/SonarQube/Nexus run ([d3e27ca](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/d3e27ca9c8422288260f58f7ac7ae668b741d881))
+* remove stale DOCKER_HOST_GATEWAY claims from Jenkins guide ([4049185](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/4049185ada40d6181ddc2d1bf7f1a69bb845d677))
+* split V1 and V2 run instructions in README ([e0cf9e5](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/commit/e0cf9e5651699236197c1657cfa6ce22d931a8b9))
+
 ## [1.1.0](https://github.com/ThinkWithOps/thinkwithops-petclinic-production/compare/petclinic-v1.0.2...petclinic-v1.1.0) (2026-10-01)
 
 
